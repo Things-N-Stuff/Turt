@@ -1,0 +1,12 @@
+# Rename this file to `config.py` and fill out the information
+
+bot_token = 'insert bot token here'
+
+# Custom string printed in the default help message
+bot_description = 'Moderation bot'
+
+# Tuple of user ids that can issue commands to the bot (Not yet implemented)
+bot_admins = ( user_id1, user_id2, user_id3, )
+
+# Command prefix for the bot
+bot_prefix = './t'
