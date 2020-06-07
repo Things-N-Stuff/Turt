@@ -37,7 +37,8 @@ async def prune(ctx, n=None):
 		await send(usage)
 		return
 
-	n = int(n) #Convert to an integer so it can be used to get channel history up to a limit
+	# Convert to an integer so it can be used to get channel history up to a limit
+	n = int(n)+1 #+1 to compensate for the command message the user sent
 
 	history = await ctx.channel.history(limit=n).flatten()
 	#await send("deleting the last " + arg + " messages. This may take a minute.")
