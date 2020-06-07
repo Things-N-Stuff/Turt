@@ -23,14 +23,25 @@ usage_prefix = "usage - " + bot_prefix
 
 @bot.event
 async def on_ready():
+	print(f"{bot.user.name}: {bot.user.id}")
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
-	print("bot_prefix: " + bot_prefix)
+	print("Users whitelisted:")
+	for user_id in bot_admins:
+		if user_id != -1 : #User id of -1 is used as a dummy id (so dont include)
+			print("\t" + str(user_id))
+	await bot.change_presence(status=discord.Status.online,
+                              activity=discord.Game(name='Moderating'))
 
 ################ MODERATION COMMANDS ##################
 
 @bot.command()
 async def prune(ctx, n=None):
-	'''Deletes the previous x number of messages'''
+	'''Deletes the previous n number of messages'''
+
+	if ctx.message.author.id not in bot_admins:
+		print("Unwhitelisted user attempted to use command: " + str(ctx.message.author) + " (" + str(ctx.message.author.id) + ")")
+		return
+
 	#usage statement sent when command incorrectly invoked
 	usage = "`" + usage_prefix + "prune [number_to_remove]`"
 	if n == None: 
