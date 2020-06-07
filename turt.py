@@ -25,7 +25,7 @@ usage_prefix = "usage - " + bot_prefix
 async def on_ready():
 	print(f"{bot.user.name}: {bot.user.id}")
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
-	print("Users whitelisted:")
+	print("User ids whitelisted:")
 	for user_id in bot_admins:
 		if user_id != -1 : #User id of -1 is used as a dummy id (so dont include)
 			print("\t" + str(user_id))
@@ -34,25 +34,39 @@ async def on_ready():
 
 ################ MODERATION COMMANDS ##################
 
-@bot.command()
-async def prune(ctx, n=None):
-	'''Deletes the previous n number of messages'''
+class ChannelMod(commands.Cog):
+	def __init__(self, bot):
+		self.bot = bot
+		self._last_member = None
 
-	if ctx.message.author.id not in bot_admins:
-		print("Unwhitelisted user attempted to use command: " + str(ctx.message.author) + " (" + str(ctx.message.author.id) + ")")
-		return
+	@commands.command()
+	async def prune(self, ctx, n=None):
+		'''Deletes the previous n number of messages'''
 
-	#usage statement sent when command incorrectly invoked
-	usage = "`" + usage_prefix + "prune [number_to_remove]`"
-	if n == None: 
-		await send(usage)
-		return
+		if not is_whitelisted(ctx.message.author.id): return
+	
+		#usage statement sent when command incorrectly invoked
+		usage = "`" + usage_prefix + "prune [number_to_remove]`"
+		if n == None: 
+			await send(usage)
+			return
+	
+		# Convert to an integer so it can be used to get channel history up to a limit
+		n = int(n)+1 #+1 to compensate for the command message the user sent
+	
+		history = await ctx.channel.history(limit=n).flatten()
+		await ctx.channel.delete_messages(history)
 
-	# Convert to an integer so it can be used to get channel history up to a limit
-	n = int(n)+1 #+1 to compensate for the command message the user sent
+################ UTILITY FUNCTIONS #####################
 
-	history = await ctx.channel.history(limit=n).flatten()
-	#await send("deleting the last " + arg + " messages. This may take a minute.")
-	await ctx.channel.delete_messages(history)
+def is_whitelisted(identification):
+	if identification not in bot_admins:
+			print("Unwhitelisted user attempted to use command: " + str(ctx.message.author) + " (" + str(ctx.message.author.id) + ")")
+			return False
+	else: return True
 
+# Add all the cogs
+bot.add_cog(ChannelMod(bot))
+
+# Run the bot
 bot.run(bot_token)
