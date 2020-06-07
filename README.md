@@ -17,3 +17,8 @@ Before you can actually start using the bot, you will need to create your own `c
 The sample config is `config.py.sample` and holds all possible configuration options aswell as a comment describing what each is for.
 
 After configuration, just run `python turt.py`.
+
+## Plans for Turt
+
+Our current plans for Turt can be seen [here](https://docs.google.com/document/d/1-u4tWmgt2BiIjdiXu1FnjCUi64xBHLHDEhf8N6rCe-g).  
+If you wish to contribute to this list, [open an issue](https://github.com/Things-N-Stuff/Turt/issues).
