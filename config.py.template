@@ -10,5 +10,8 @@ bot_description = 'Moderation bot'
 # b/c nobody has that userid
 bot_admins = ( user_id1, user_id2, user_id3, )
 
+# Tuple of channel ids that can only contain links
+link_only_channels = (channel1, channel2,)
+
 # Command prefix for the bot
 bot_prefix = './t'

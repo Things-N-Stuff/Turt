@@ -6,15 +6,16 @@ import discord
 
 #import needed utilities
 from datetime import datetime
+from urllib.parse import urlparse
 
 #import config
-from config import bot_token, bot_admins, bot_prefix, bot_description
+from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels
 
 #bot description can be None
 bot = commands.Bot(command_prefix=bot_prefix, 
-					description=bot_description,
-					status=discord.Status.idle,
-					activity=discord.Game(name='Starting...'))
+		    description=bot_description,
+		    status=discord.Status.idle,
+		    activity=discord.Game(name='Starting...'))
 
 usage_prefix = "usage - " + bot_prefix
 
@@ -27,23 +28,21 @@ async def on_ready():
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
 	print("User ids whitelisted:")
 	for user_id in bot_admins:
-		if user_id != -1 : #User id of -1 is used as a dummy id (so dont include)
+		if user_id != -1:
 			print("\t" + str(user_id))
-	await bot.change_presence(status=discord.Status.online,
-                              activity=discord.Game(name='Moderating'))
+	await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='Moderating'))
 
 ################ MODERATION COMMANDS ##################
 
 class ChannelMod(commands.Cog):
-	def __init__(self, bot):
+	def init(self, bot):
 		self.bot = bot
-		self._last_member = None
-
-	@commands.command()
+		
+	@commands.Command
 	async def prune(self, ctx, n=None):
 		'''Deletes the previous n number of messages'''
 
-		if not is_whitelisted(ctx.message.author.id): return
+		if not is_whitelisted(ctx.author.id): return
 	
 		#usage statement sent when command incorrectly invoked
 		usage = "`" + usage_prefix + "prune [number_to_remove]`"
@@ -56,14 +55,37 @@ class ChannelMod(commands.Cog):
 	
 		history = await ctx.channel.history(limit=n).flatten()
 		await ctx.channel.delete_messages(history)
+	
+   	#Only allow links in certain channels (No extra content allowed)
+	@commands.Cog.listener()
+	async def on_message(self, msg):
+		'''Enforces messaging rules'''
+		
+		#Determine if the message is posted in a link only channel
+		if msg.channel.id in link_only_channels:
+			#Determine if the entire message is a link (no other content allowed)
+			result = urlparse(msg.content)
+			if not all([result.scheme, result.netloc, result.path]):
+				await msg.delete()
+
+	@commands.Cog.listener()
+	async def on_message_edit(self, before, after):
+		'''Enforces editing rules'''
+		
+		#Determine if the message is posted in a link only channel
+		if after.channel.id in link_only_channels:
+			#Determine if the entire message is a link (no other content allowed)
+			result = urlparse(after.content)
+			if not all([result.scheme, result.netloc, result.path]):
+				await after.delete() 
+				#NOTE: This only works if the message is in the internal message cache
+				# If the bot starts up after the message is posted and the bot does not act on it since for any reason,
+				# then this will NOT work
 
 ################ UTILITY FUNCTIONS #####################
 
-def is_whitelisted(identification):
-	if identification not in bot_admins:
-			print("Unwhitelisted user attempted to use command: " + str(ctx.message.author) + " (" + str(ctx.message.author.id) + ")")
-			return False
-	else: return True
+def is_whitelisted(user_id):
+	return user_id in bot_admins
 
 # Add all the cogs
 bot.add_cog(ChannelMod(bot))
