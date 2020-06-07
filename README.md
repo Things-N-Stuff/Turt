@@ -3,6 +3,17 @@
 Discord Server Moderation Bot
 
 ## Requirements
+ - python3
+ - [discord.py](https://github.com/Rapptz/discord.py)
 
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Serenity-rs](https://github.com/serenity-rs/serenity)
+## Using the Bot
+If you haven't already, clone this repo by running the following command.
+
+```
+git clone https://github.com/Things-N-Stuff/Turt
+```
+
+Before you can actually start using the bot, you will need to create your own `config.py`.
+The sample config is `config.py.sample` and holds all possible configuration options aswell as a comment describing what each is for.
+
+After configuration, just run `python turt.py`.
