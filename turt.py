@@ -122,8 +122,8 @@ class Voting(commands.Cog):
 		# Ensure that the election is in the server the command is sent in
 		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
 		result = cursor.fetchone()
-		if ctx.guild.id != result[3]: # We also need to make sure that the election is in this server
-			await ctx.channel.send("We are unaware of an election with ID '" + str(electionID) + "'. `./t elections` to see current elections for this server.")
+		if result is None or ctx.guild.id != result[3]: # We also need to make sure that the election is in this server
+			await ctx.channel.send("We are unaware of an election with ID `" + str(electionID) + "`. `./t elections` to see current elections for this server.")
 			await ctx.channel.send("If you are voting in an election for a different server, you must vote in that server.")
 			return
 
@@ -155,11 +155,10 @@ class Voting(commands.Cog):
 
 		#Begin creating the embed that tells the user the current elections
 		elections_embed = discord.Embed()
-		elections_embed.title = "Ongoing Elections in " + ctx.guild.name
+		elections_embed.title="Ongoing Elections in " + ctx.guild.name
 		elections_embed.description = "`./t electioninfo [ID]` for more info on an election.\nVote with `./t vote [electionID] [yes/no]`"
 		for election in all_elections: #Add each election on its own line
 			elections_embed.add_field(name="Name", value=election[4].title(), inline=True)
-			elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
 
 			#Time left field
 			current_time_in_hours = int(round(time.time()/3600))
@@ -167,6 +166,8 @@ class Voting(commands.Cog):
 			message = str(time_left) + " Hours"
 			if time_left < 1: message = "< 1 Hour"
 			elections_embed.add_field(name="Time Left", value=message, inline=True)
+
+			elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
 		await ctx.channel.send(embed=elections_embed) #send it
 
 	@commands.Command
@@ -175,15 +176,14 @@ class Voting(commands.Cog):
 
 		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
 		election = cursor.fetchone()
-		if ctx.guild.id != election[3]: # We also need to make sure that the election is in this server
-			await ctx.channel.send("We are unaware of an election with id '" + str(electionID) + "'. `./t elections` to see current elections for this server.")
+		if election is None or ctx.guild.id != election[3]: # We also need to make sure that the election is in this server
+			await ctx.channel.send("We are unaware of an election with ID `" + str(electionID) + "`. `./t elections` to see current elections for this server.")
 			return
 
 		#Begin creating the embed that tells the user the current elections
 		elections_embed = discord.Embed()
 		elections_embed.title = election[4].title() + " - Ongoing Election"
 		elections_embed.description = election[5].capitalize()
-		elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
 
 		#Time left field
 		current_time_in_hours = int(round(time.time()/3600))
@@ -191,6 +191,9 @@ class Voting(commands.Cog):
 		message = str(time_left) + " Hours"
 		if time_left < 1: message = "< 1 Hour"
 		elections_embed.add_field(name="Time Left", value=message, inline=True)
+
+		elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
+		elections_embed.add_field(name="Total Votes", value = str(election[1] + election[2]), inline=True)
 		await ctx.channel.send(embed=elections_embed) #send it
 
 	@commands.Command
