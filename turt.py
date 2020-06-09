@@ -52,10 +52,6 @@ async def on_ready():
 	print("Putting all users in database...")
 	await setup_database_with_all_users()
 
-	#Create thread to check votes (hourly)
-	#votethread = Thread(target = dummy_asyncio_workaround)
-	#votethread.start()
-
 
 @bot.event
 async def on_member_join(member):
@@ -175,13 +171,9 @@ class VotingMod(commands.Cog):
 	
 					#Send message
 					server = await bot.fetch_guild(server_id)
-					print("Vote has concluded")
 					for channel in await server.fetch_channels():
 						if channel.id == vote_channel_id:
 							await channel.send("Vote has concluded!")
-					#channel = await server.get_channel(vote_channel_id)
-					print("Vote has concluded2")
-					#await channel.send("Vote has concluded!")
 	
 					# Remove election from database
 					print(row[election_id_index])
@@ -195,10 +187,6 @@ class VotingMod(commands.Cog):
 
 def is_whitelisted(user_id):
 	return user_id in bot_admins
-
-def dummy_asyncio_workaround(): #Basically I cant run this directly from Thread, so I have to use a function
-	loop = asyncio.new_event_loop()
-	loop.run_until_complete(checkvotes())
 
 ################ DATABASE FUNCTIONS ####################
 
