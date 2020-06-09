@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.8
 
 #import discord.py api wrapper
-from discord.ext import commands
+from discord.ext import commands, tasks
 import discord
 
 #import sqlite
 import sqlite3
+from sqlite3 import Error
 
 #import needed utilities
 from datetime import datetime
@@ -13,7 +14,10 @@ from datetime import timedelta
 from urllib.parse import urlparse
 from sys import exit
 import time
+from time import sleep
 import os
+from threading import Thread
+import asyncio
 
 #import config
 try:
@@ -48,25 +52,21 @@ async def on_ready():
 	print("Putting all users in database...")
 	await setup_database_with_all_users()
 
+	#Create thread to check votes (hourly)
+	#votethread = Thread(target = dummy_asyncio_workaround)
+	#votethread.start()
+
+
 @bot.event
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
-
-@bot.command()
-async def ping(ctx):
-	await ctx.channel.send("Pong!")
-	print(len(ctx.guild.members))
-	user_id = ctx.author.id
-	determine_if_user_exists(user_id)
-	cursor.execute("UPDATE users SET TotalPing = TotalPing + 1 WHERE PersonID = ?", (user_id,))
-	conn.commit()
 
 ################ MODERATION COMMANDS ##################
 
 class ChannelMod(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		
+
 	@commands.Command
 	async def prune(self, ctx, n=None):
 		'''Deletes the previous n number of messages'''
@@ -114,6 +114,7 @@ class ChannelMod(commands.Cog):
 class VotingMod(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.check_votes.start()
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int):
@@ -125,33 +126,100 @@ class VotingMod(commands.Cog):
 			return
 
 		#will later have enforcement functionality
+
+		#Getting time
 		hours_in_day = 24
-		endTime = int(round(time.time()/3600)) + round(hours_in_day*(num_days)) # in hours
-		endTimeAsDate = datetime.now() + timedelta(hours=round(hours_in_day*(num_days)))
-		cursor.execute("SELECT MAX(ElectionID) FROM elections")
-		result = cursor.fetchone()
-		if result[0] is None: result = 0 # If there are no elections right now, then we want to do make the id 0
-		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?)", (result, 0, 0, ctx.guild.id, name, desc, endTime))
+		additional_hours = round(hours_in_day*(num_days))
+		endTime = int(round(time.time()/3600)) + additional_hours # in hours
+		endTimeAsDate = datetime.now().replace(microsecond=0, second=0, minute=0) + timedelta(hours=additional_hours) + timedelta(hours=1) #Hours should round up
+
+		
+		cursor.execute("SELECT MAX(ElectionID) FROM elections") # We want to new id to be the next id not used
+		result = cursor.fetchone()[0]
+		if result is None: result = -1 # If there are no elections right now, then we want to do make the id 0 (Note: adds 1)
+		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?)", (result+1, 0, 0, ctx.guild.id, name, desc, endTime))
 		conn.commit()
 		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
+
+	@commands.Command
+	async def votingchannel(self, ctx, channelid:int):
+		'''Set the channel in which election/voting messages will be sent'''
+
+		if ctx.guild.get_channel(channelid) is not None: #Set the election channel (Must exist on this server)
+			cursor.execute("UPDATE servers SET ElectionChannelID = ? WHERE ServerID = ?", (channelid, ctx.guild.id))
+			conn.commit()
+			await ctx.channel.send("Election message channel successfully updated to '" + ctx.guild.get_channel(channelid).name + "'")
+		else:
+			await ctx.channel.send("Channel with id '" + channelid + "' does not exist on this server.")
+
+
+	@tasks.loop(seconds=59) 
+	async def check_votes(self):
+		await self.bot.wait_until_ready()
+		has_checked_votes = False
+		if datetime.now().minute == 0 or not has_checked_votes: #Now check all
+			print("Checking votes")
+			cursor.execute("SELECT * FROM elections")
+			current_time_in_hours = int(round(time.time()/3600))
+			end_time_index = 6
+			server_index = 3
+			election_id_index = 0
+			for row in cursor.fetchall():
+				if current_time_in_hours > row[end_time_index]: #Vote has concluded
+					server_id = row[server_index]
+					print(server_id)
+					# Send message to channel
+					cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
+					result = cursor.fetchone()
+					vote_channel_id = result[1]
+	
+					#Send message
+					server = await bot.fetch_guild(server_id)
+					print("Vote has concluded")
+					for channel in await server.fetch_channels():
+						if channel.id == vote_channel_id:
+							await channel.send("Vote has concluded!")
+					#channel = await server.get_channel(vote_channel_id)
+					print("Vote has concluded2")
+					#await channel.send("Vote has concluded!")
+	
+					# Remove election from database
+					print(row[election_id_index])
+					cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
+					conn.commit()
+	
+					# Enforce the vote (implement later)
+			has_checked_votes = True
 
 ################ UTILITY FUNCTIONS #####################
 
 def is_whitelisted(user_id):
 	return user_id in bot_admins
 
+def dummy_asyncio_workaround(): #Basically I cant run this directly from Thread, so I have to use a function
+	loop = asyncio.new_event_loop()
+	loop.run_until_complete(checkvotes())
+
 ################ DATABASE FUNCTIONS ####################
+
+def determine_if_server_exists(server_id): #And add the server if not
+	cursor.execute("SELECT count(*) FROM servers WHERE ServerID = ?", (server_id,))
+	if cursor.fetchone()[0] == 0:
+		cursor.execute("INSERT INTO servers VALUES (?, ?)", (server_id, -1))
+		conn.commit()
+		print("\t\tAdded Server")
 
 def determine_if_user_exists(user_id): #And add the user if not
 	cursor.execute("SELECT count(*) FROM users WHERE PersonID = ?", (user_id,))
 	if cursor.fetchone()[0] == 0:
-		cursor.execute("INSERT INTO users VALUES (?, ?)", (user_id, 0))
+		cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
 		conn.commit()
 		print("\t\t\tAdded User")
 
 async def setup_database_with_all_users():
 	for guild in bot.guilds:
 		print("\tchecking in server `" + guild.name + "` (" + str(guild.id) + ")")
+		determine_if_server_exists(guild.id)
 		for member in guild.members:
 			print("\t\tchecking member `" + str(member) + "` (" + str(member.id) + ")")
 			determine_if_user_exists(member.id)
