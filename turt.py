@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.8
+#!/usr/bin/env python3.6
 
 #import discord.py api wrapper
 from discord.ext import commands, tasks
@@ -42,6 +42,7 @@ cursor = None
 
 @bot.event
 async def on_ready():
+	print(discord.__version__)
 	print(f"{bot.user.name}: {bot.user.id}")
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
 	print("User ids whitelisted:")
@@ -141,6 +142,8 @@ class VotingMod(commands.Cog):
 	async def votingchannel(self, ctx, channelid:int):
 		'''Set the channel in which election/voting messages will be sent'''
 
+		if not is_whitelisted(ctx.author.id): return
+
 		if ctx.guild.get_channel(channelid) is not None: #Set the election channel (Must exist on this server)
 			cursor.execute("UPDATE servers SET ElectionChannelID = ? WHERE ServerID = ?", (channelid, ctx.guild.id))
 			conn.commit()
@@ -154,7 +157,6 @@ class VotingMod(commands.Cog):
 		await self.bot.wait_until_ready()
 		has_checked_votes = False
 		if datetime.now().minute == 0 or not has_checked_votes: #Now check all
-			print("Checking votes")
 			cursor.execute("SELECT * FROM elections")
 			current_time_in_hours = int(round(time.time()/3600))
 			end_time_index = 6
@@ -163,23 +165,40 @@ class VotingMod(commands.Cog):
 			for row in cursor.fetchall():
 				if current_time_in_hours > row[end_time_index]: #Vote has concluded
 					server_id = row[server_index]
-					print(server_id)
 					# Send message to channel
 					cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
-					result = cursor.fetchone()
-					vote_channel_id = result[1]
-	
-					##Send message
-					#server = await bot.fetch_guild(server_id)
-					#for channel in await server.fetch_channels():
-					#	if channel.id == vote_channel_id:
-					#		await channel.send("Vote has concluded!")
+					vote_channel_id = cursor.fetchone()[1]
 
-					channel = bot.get_channel(vote_channel_id)
-					await channel.send("Vote has concluded!")
+					yes=row[1]
+					no=row[2]
+
+					message=""
+
+					if(yes > no): # Note that it has to be a simple majority (tie does not count)
+						message = "The majority says \"Yes\"!"
+					if(yes < no):
+						message = "The majority says \"No\"!"
+					else:
+						message = "The vote was a tie!"
+
+					#Vote conclusion embed message
+					vote_embed = discord.Embed()
+					vote_embed.title = row[4].capitalize() + " - Vote has concluded!"
+					vote_embed.description = message
+					vote_embed.add_field(name="Description", value=row[5].capitalize(), inline=False)
+					vote_embed.add_field(name="Yes", value=yes, inline=True)
+					vote_embed.add_field(name="No", value=no, inline=True)
+
+					#Send message - Idk why I have to do it this way, but doing `bot.get_channel(id)` stalls the entire thing
+					server = await bot.fetch_guild(server_id)
+					for channel in await server.fetch_channels():
+						if channel.id == vote_channel_id:
+							await channel.send(embed=vote_embed)
+
+					#channel = bot.get_channel(int(vote_channel_id))
+					#await channel.send("Vote has concluded!")
 
 					# Remove election from database
-					print(row[election_id_index])
 					cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
 					conn.commit()
 	
@@ -205,14 +224,14 @@ def determine_if_user_exists(user_id): #And add the user if not
 	if cursor.fetchone()[0] == 0:
 		cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
 		conn.commit()
-		print("\t\t\tAdded User")
+		print("\t\t\tAdded member (" + str(user_id) + ")")
 
 async def setup_database_with_all_users():
 	for guild in bot.guilds:
 		print("\tchecking in server `" + guild.name + "` (" + str(guild.id) + ")")
 		determine_if_server_exists(guild.id)
 		for member in guild.members:
-			print("\t\tchecking member `" + str(member) + "` (" + str(member.id) + ")")
+			#print("\t\tchecking member `" + str(member) + "` (" + str(member.id) + ")")
 			determine_if_user_exists(member.id)
 
 ################ STARTUP ###############################
