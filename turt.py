@@ -60,7 +60,7 @@ async def on_member_join(member):
 
 ################ MODERATION COMMANDS ##################
 
-class ChannelMod(commands.Cog):
+class Channels(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
@@ -108,36 +108,90 @@ class ChannelMod(commands.Cog):
 				# If the bot starts up after the message is posted and the bot does not act on it since for any reason,
 				# then this will NOT work
 
-class VotingMod(commands.Cog):
+class Voting(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.check_votes.start()
 
-	@commands.Command(self, ctx, electionID:int , vote:str):
+	@commands.Command
+	async def vote(self, ctx, electionID:int , vote:str):
 		'''Casts your ballot for a specific election'''
 
-		# Ensure that the user has not voted yet
+		# TODO:Ensure that the user has not voted yet
 
 		# Ensure that the election is in the server the command is sent in
 		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
-		if ctx.guild.id is not cursor.fetchone()[0]:
-			await ctx.channel.send("Invalid electionID '" + electionID + "'. `./t currentelections` to see current elections for this server.")
+		result = cursor.fetchone()
+		if ctx.guild.id != result[3]: # We also need to make sure that the election is in this server
+			await ctx.channel.send("We are unaware of an election with ID '" + str(electionID) + "'. `./t elections` to see current elections for this server.")
 			await ctx.channel.send("If you are voting in an election for a different server, you must vote in that server.")
 			return
 
 		# Ensure that the user is casting a valid choice ("yes" or "no")
 		if vote.lower() != "yes" and vote.lower() != "no":
-			await ctx.channel.send("Invalid ballot. You must either choose 'yes' or 'no'")
+			await ctx.channel.send("Invalid ballot. You must either choose 'yes' or 'no'.")
 			return
 
 		# Update the database because good ballot and in correct server
 		if vote.lower() == "yes":
 			cursor.execute("UPDATE elections SET yes=yes+1 WHERE ElectionID=?", (electionID,))
-		else if vote.lower() == "no":
+		elif vote.lower() == "no":
 			cursor.execute("UPDATE elections SET no=no+1 WHERE ElectionID=?", (electionID,))
 		conn.commit()
 
+		# Tell the user their ballot has been accepted
+		await ctx.channel.send("Your ballot ('" + vote + "') has been accepted for election '" + result[4] + "' (`" + str(electionID) + "`)")
 
+	@commands.Command
+	async def elections(self, ctx):
+		'''See information on elections in your server'''
+
+		cursor.execute("SELECT * FROM elections WHERE ServerID=?", (ctx.guild.id,))
+
+		all_elections = cursor.fetchall() 
+		if len(all_elections) == 0: #There are no current elections in the server
+			await ctx.channel.send("There are no ongoing elections in " + ctx.guild.name + ". `./t callvote [name] [desc] [ndays]` to make one!")
+			return
+
+		#Begin creating the embed that tells the user the current elections
+		elections_embed = discord.Embed()
+		elections_embed.title = "Ongoing Elections in " + ctx.guild.name
+		elections_embed.description = "`./t electioninfo [ID]` for more info on an election.\nVote with `./t vote [electionID] [yes/no]`"
+		for election in all_elections: #Add each election on its own line
+			elections_embed.add_field(name="Name", value=election[4].title(), inline=True)
+			elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
+
+			#Time left field
+			current_time_in_hours = int(round(time.time()/3600))
+			time_left = election[6] - current_time_in_hours
+			message = str(time_left) + " Hours"
+			if time_left < 1: message = "< 1 Hour"
+			elections_embed.add_field(name="Time Left", value=message, inline=True)
+		await ctx.channel.send(embed=elections_embed) #send it
+
+	@commands.Command
+	async def electioninfo(self, ctx, electionID):
+		'''See more detailed information on an election'''
+
+		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
+		election = cursor.fetchone()
+		if ctx.guild.id != election[3]: # We also need to make sure that the election is in this server
+			await ctx.channel.send("We are unaware of an election with id '" + str(electionID) + "'. `./t elections` to see current elections for this server.")
+			return
+
+		#Begin creating the embed that tells the user the current elections
+		elections_embed = discord.Embed()
+		elections_embed.title = election[4].title() + " - Ongoing Election"
+		elections_embed.description = election[5].capitalize()
+		elections_embed.add_field(name="ID", value="`"+str(election[0])+"`", inline=True) #We want this as code block to make it look good
+
+		#Time left field
+		current_time_in_hours = int(round(time.time()/3600))
+		time_left = election[6] - current_time_in_hours
+		message = str(time_left) + " Hours"
+		if time_left < 1: message = "< 1 Hour"
+		elections_embed.add_field(name="Time Left", value=message, inline=True)
+		await ctx.channel.send(embed=elections_embed) #send it
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int):
@@ -276,8 +330,8 @@ except Error as e:
 	exit(-2)
 
 # Add all the cogs
-bot.add_cog(ChannelMod(bot))
-bot.add_cog(VotingMod(bot))
+bot.add_cog(Channels(bot))
+bot.add_cog(Voting(bot))
 
 # Run the bot
 bot.run(bot_token)
