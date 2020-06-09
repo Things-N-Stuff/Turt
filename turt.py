@@ -113,6 +113,32 @@ class VotingMod(commands.Cog):
 		self.bot = bot
 		self.check_votes.start()
 
+	@commands.Command(self, ctx, electionID:int , vote:str):
+		'''Casts your ballot for a specific election'''
+
+		# Ensure that the user has not voted yet
+
+		# Ensure that the election is in the server the command is sent in
+		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
+		if ctx.guild.id is not cursor.fetchone()[0]:
+			await ctx.channel.send("Invalid electionID '" + electionID + "'. `./t currentelections` to see current elections for this server.")
+			await ctx.channel.send("If you are voting in an election for a different server, you must vote in that server.")
+			return
+
+		# Ensure that the user is casting a valid choice ("yes" or "no")
+		if vote.lower() != "yes" and vote.lower() != "no":
+			await ctx.channel.send("Invalid ballot. You must either choose 'yes' or 'no'")
+			return
+
+		# Update the database because good ballot and in correct server
+		if vote.lower() == "yes":
+			cursor.execute("UPDATE elections SET yes=yes+1 WHERE ElectionID=?", (electionID,))
+		else if vote.lower() == "no":
+			cursor.execute("UPDATE elections SET no=no+1 WHERE ElectionID=?", (electionID,))
+		conn.commit()
+
+
+
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int):
 		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour)'''
@@ -121,8 +147,6 @@ class VotingMod(commands.Cog):
 		if num_days < 1:
 			await send("An election must go for a minimum of 1 day")
 			return
-
-		#will later have enforcement functionality
 
 		#Getting time
 		hours_in_day = 24
