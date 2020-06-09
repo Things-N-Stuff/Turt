@@ -169,12 +169,15 @@ class VotingMod(commands.Cog):
 					result = cursor.fetchone()
 					vote_channel_id = result[1]
 	
-					#Send message
-					server = await bot.fetch_guild(server_id)
-					for channel in await server.fetch_channels():
-						if channel.id == vote_channel_id:
-							await channel.send("Vote has concluded!")
-	
+					##Send message
+					#server = await bot.fetch_guild(server_id)
+					#for channel in await server.fetch_channels():
+					#	if channel.id == vote_channel_id:
+					#		await channel.send("Vote has concluded!")
+
+					channel = bot.get_channel(vote_channel_id)
+					await channel.send("Vote has concluded!")
+
 					# Remove election from database
 					print(row[election_id_index])
 					cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
