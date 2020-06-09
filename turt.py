@@ -118,6 +118,17 @@ class Voting(commands.Cog):
 		'''Casts your ballot for a specific election'''
 
 		# TODO:Ensure that the user has not voted yet
+		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))
+		result = cursor.fetchone()
+		if result is None: #TODO: The user probably isnt in the database
+			return
+		print(str(result[1]).split("-")) 
+		print(str(electionID))
+		#for x in result[1].split("-"):
+			#if int(float(x)) == electionID:
+		if str(electionID) in str(result[1]).split("-"): #The user has already participated in this election
+				await ctx.channel.send("You have already participated in this election (`" + str(electionID) + "`).")
+				return
 
 		# Ensure that the election is in the server the command is sent in
 		cursor.execute("SELECT * FROM elections WHERE ElectionID=?", (electionID,))
@@ -140,7 +151,13 @@ class Voting(commands.Cog):
 		conn.commit()
 
 		# Tell the user their ballot has been accepted
-		await ctx.channel.send("Your ballot ('" + vote + "') has been accepted for election '" + result[4] + "' (`" + str(electionID) + "`)")
+		await ctx.channel.send("Your ballot ('" + vote + "') has been accepted for election '" + str(result[4]) + "' (`" + str(electionID) + "`)")
+
+		# Add the electionID to the elections the user has voted in
+		previousStuff = str(cursor.execute("SELECT * FROM users WHERE UserID = ?", (ctx.author.id, )).fetchone()[1])
+		newStuff = previousStuff + "-" + str(electionID)
+		cursor.execute("UPDATE users SET ElectionsVotedIn = ? WHERE UserID=?", (newStuff, ctx.author.id))
+		conn.commit()
 
 	@commands.Command
 	async def elections(self, ctx):
@@ -150,12 +167,12 @@ class Voting(commands.Cog):
 
 		all_elections = cursor.fetchall() 
 		if len(all_elections) == 0: #There are no current elections in the server
-			await ctx.channel.send("There are no ongoing elections in " + ctx.guild.name + ". `./t callvote [name] [desc] [ndays]` to make one!")
+			await ctx.channel.send("There are no ongoing elections in " + str(ctx.guild.name) + ". `./t callvote [name] [desc] [ndays]` to make one!")
 			return
 
 		#Begin creating the embed that tells the user the current elections
 		elections_embed = discord.Embed()
-		elections_embed.title="Ongoing Elections in " + ctx.guild.name
+		elections_embed.title="Ongoing Elections in " + str(ctx.guild.name)
 		elections_embed.description = "`./t electioninfo [ID]` for more info on an election.\nVote with `./t vote [electionID] [yes/no]`"
 		for election in all_elections: #Add each election on its own line
 			elections_embed.add_field(name="Name", value=election[4].title(), inline=True)
@@ -264,13 +281,13 @@ class Voting(commands.Cog):
 
 					#Vote conclusion embed message
 					vote_embed = discord.Embed()
-					vote_embed.title = row[4].capitalize() + " - Vote has concluded!"
+					vote_embed.title = row[4].title() + " - Vote has concluded!"
 					vote_embed.description = message
 					vote_embed.add_field(name="Description", value=row[5].capitalize(), inline=False)
 					vote_embed.add_field(name="Yes", value=yes, inline=True)
 					vote_embed.add_field(name="No", value=no, inline=True)
 
-					#Send message - Idk why I have to do it this way, but doing `bot.get_channel(id)` stalls the entire thing
+					#Send message - Idk why I have to do it this way, but doing `bot.get_channel(id)` stalls the entire thing on my computer
 					server = await bot.fetch_guild(server_id)
 					for channel in await server.fetch_channels():
 						if channel.id == vote_channel_id:
@@ -279,11 +296,24 @@ class Voting(commands.Cog):
 					#channel = bot.get_channel(int(vote_channel_id))
 					#await channel.send("Vote has concluded!")
 
+					# Remove from all users' ElectionsVotedIn
+					cursor.execute("SELECT * FROM users")
+					result = cursor.fetchall()
+					for user in result:
+						print(row[election_id_index])
+						print(str(user[1]).split("-"))
+						if str(row[election_id_index]) in str(user[1]).split("-"): #The user participated in this election
+							newElectionIDs = user[1].split("-").remove(str(row[election_id_index]))
+							if newElectionIDs is not None: newElectionIDs.join("-")
+							cursor.execute("UPDATE users SET ElectionsVotedIn = ? WHERE UserID=?", (newElectionIDs, user[0]))
+					conn.commit()
+
 					# Remove election from database
 					cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
 					conn.commit()
-	
-					# Enforce the vote (implement later)
+
+					
+					# TODO:Enforce the vote (implement later)
 			has_checked_votes = True
 
 ################ UTILITY FUNCTIONS #####################
@@ -301,9 +331,9 @@ def determine_if_server_exists(server_id): #And add the server if not
 		print("\t\tAdded Server")
 
 def determine_if_user_exists(user_id): #And add the user if not
-	cursor.execute("SELECT count(*) FROM users WHERE PersonID = ?", (user_id,))
+	cursor.execute("SELECT count(*) FROM users WHERE UserID = ?", (user_id,))
 	if cursor.fetchone()[0] == 0:
-		cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
+		cursor.execute("INSERT INTO users VALUES (?, ?)", (user_id, ""))
 		conn.commit()
 		print("\t\t\tAdded member (" + str(user_id) + ")")
 
@@ -312,7 +342,6 @@ async def setup_database_with_all_users():
 		print("\tchecking in server `" + guild.name + "` (" + str(guild.id) + ")")
 		determine_if_server_exists(guild.id)
 		for member in guild.members:
-			#print("\t\tchecking member `" + str(member) + "` (" + str(member.id) + ")")
 			determine_if_user_exists(member.id)
 
 ################ STARTUP ###############################
