@@ -53,11 +53,16 @@ async def on_ready():
 	print("Putting all users in database...")
 	await setup_database_with_all_users()
 
+#Input error handling
+@bot.event
+async def on_command_error(ctx, error):
+	await ctx.send_help(ctx.command)
 
 @bot.event
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
 
+# Allow only specially whitelisted people to shut the bot down
 @bot.command
 async def shutdown(ctx):
 	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot'''	
@@ -76,9 +81,13 @@ class Channels(commands.Cog):
 
 	@commands.Command
 	async def prune(self, ctx, n=None):
-		'''Deletes the previous n number of messages'''
+		'''Deletes the previous n number of messages (Up to 99)'''
 
 		if not is_whitelisted(ctx.author.id): return
+
+		if n > 99:
+			await ctx.channel.send("You can only prune up to 99 messages.")
+			return
 	
 		#usage statement sent when command incorrectly invoked
 		usage = "`" + usage_prefix + "prune [number_to_remove]`"
@@ -129,7 +138,10 @@ class Voting(commands.Cog):
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
-		voting_channel_id = cursor.fetchone()[1]
+		first = cursor.fetchone()
+		voting_channel_id = None
+		if first is None: determine_if_server_exists(ctx.guild.id,) # Add the server to the database if the server does not exist
+		else: voting_channel_id = first[1]
 		if voting_channel_id is None or voting_channel_id == -1: # Not configured
 			await ctx.channel.send("The election channel has not been configured for this server.\n`./t electionchannel [channelID]` to setup election channel.")
 			return
@@ -137,8 +149,11 @@ class Voting(commands.Cog):
 		# Make sure the user has not voted in the last 12 hours in any election
 		next_time_index = 1 # The index of when the user can create an election next
 		current_time_in_hours = int(round(time.time()/3600))
-		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))
-		next_time = cursor.fetchone()[next_time_index]
+		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
+		first = cursor.fetchone()
+		next_time = 0
+		if first is None: determine_if_user_exists(ctx.author.id,) #Add the user to the database if they are not there
+		else: next_time = first[next_time_index]
 		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 6 hours
 			await ctx.channel.send("You can only create an election every 12 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
 			return
@@ -178,7 +193,7 @@ class Voting(commands.Cog):
 		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
 		conn.commit()
 
-		await ctx.channel.send("Election created! Vote ends in " + additional_hours + " Hours.")
+		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
 
 	@commands.Command
 	async def electionchannel(self, ctx, channelid:int):
@@ -212,8 +227,15 @@ class Voting(commands.Cog):
 			for row in cursor.fetchall():
 				server_id = row[server_index]
 
+				vote_channel_id = None
 				cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
-				vote_channel_id = cursor.fetchone()[1]
+				result = cursor.fetchone()
+				if result is None: # The server isnt stored in the database, so add it
+					determine_if_server_exists()
+					return
+				else: vote_channel_id = result[1]
+
+				if vote_channel_id == -1: return # The server election channel has not been setup yet
 
 				#Update time
 				channel = bot.get_channel(int(vote_channel_id))
@@ -235,8 +257,8 @@ class Voting(commands.Cog):
 				#If the vote is over:
 				if current_time_in_hours > row[end_time_index]: #Vote has concluded
 					# Send message to channel
-					cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
-					vote_channel_id = cursor.fetchone()[1]
+
+					if vote_channel_id == -1: return
 
 					yes=0
 					no=0
