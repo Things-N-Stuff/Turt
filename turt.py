@@ -124,6 +124,15 @@ class Voting(commands.Cog):
 			await ctx.channel.send("The election channel has not been configured for this server.\n`./t electionchannel [channelID]` to setup election channel.")
 			return
 
+		# Make sure the user has not voted in the last 12 hours in any election
+		next_time_index = 1 # The index of when the user can create an election next
+		current_time_in_hours = int(round(time.time()/3600))
+		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))
+		next_time = cursor.fetchone()[next_time_index]
+		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 6 hours
+			await ctx.channel.send("You can only create an election every 12 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
+			return
+
 		# The user must supply a minimum of 1 day in order to give time for people to vote
 		if num_days < 1:
 			await ctx.channel.send("An election must go for a minimum of 1 day")
@@ -156,6 +165,7 @@ class Voting(commands.Cog):
 		message = await bot.get_channel(voting_channel_id).send(embed=election_embed) #Send it to the voting channel
 
 		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, thumbnail))
+		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
 		conn.commit()
 
 		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
@@ -305,7 +315,7 @@ async def setup_database_with_all_users():
 
 # Determine if the bot has been setup
 if not os.path.isfile(db_file):
-	print("Turt bot has not been setup. Setup turt bot by running `setup.py`")
+	print("Turt bot has not been setup. Setup turt bot by running `python3 setup.py`")
 	exit(-1)
 	
 # Create connection with db

@@ -15,7 +15,7 @@ def setup_sqlite_db(db):
 		conn = sqlite3.connect(db)
 		print("Sqlite3 version: " + sqlite3.version)
 		cursor = conn.cursor()
-		cursor.execute("CREATE TABLE users(UserID int DEFAULT -1, ElectionsVotedIn TEXT)")
+		cursor.execute("CREATE TABLE users(UserID int DEFAULT -1, WhenCanVoteNext int DEFAULT 0)")
 		cursor.execute("CREATE TABLE elections(ElectionID int DEFAULT -1, MessageID int DEFAULT -1, ServerID int DEFAULT -1, UserToStart int DEFAULT -1, Name str DEFAULT election, Desc str DEFAULT description, EndTime int DEFAULT 0, Thumbnail str)")
 		cursor.execute("CREATE TABLE servers(ServerID int DEFAULT -1, ElectionChannelID int DEFAULT -1)")
 		conn.commit()
