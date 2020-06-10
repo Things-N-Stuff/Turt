@@ -64,7 +64,7 @@ async def on_member_join(member):
 	determine_if_user_exists(member.id)
 
 # Allow only specially whitelisted people to shut the bot down
-@bot.command
+@bot.command()
 async def shutdown(ctx):
 	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot'''	
 
@@ -72,7 +72,26 @@ async def shutdown(ctx):
 
 	await ctx.channel.send("Shutting down...")
 	conn.commit() # Ensure that everything was saved
-	exit(1)
+	try:
+		await bot.close()
+	except:
+		exit(1)	
+
+@bot.command()
+async def restart(ctx):
+	'''Restart the process. Must be whitelisted to restart the bot.'''
+
+	if not ctx.author.id in shutdown_admins: return
+
+	await ctx.channel.send("Restarting...")
+	try:
+		# spawn process
+		os.system("python3.6 turt.py")
+		await bot.close()
+	except:
+		# spawn process
+		os.system("python3.6 turt.py")
+		exit(2)
 
 ################ MODERATION COMMANDS ##################
 
