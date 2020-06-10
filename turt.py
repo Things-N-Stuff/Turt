@@ -21,7 +21,7 @@ import asyncio
 
 #import config
 try:
-	from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels
+	from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels, shutdown_admins
 except:
 	print("Turt bot is not configured. In order to run the bot, Turt must be configured in the config.py.template file.")
 	exit(-1)
@@ -57,6 +57,16 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
+
+@bot.command
+async def shutdown(ctx):
+	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot'''	
+
+	if not ctx.author.id in shutdown_admins: return
+
+	await ctx.channel.send("Shutting down...")
+	conn.commit() # Ensure that everything was saved
+	sys.exit(1)
 
 ################ MODERATION COMMANDS ##################
 
