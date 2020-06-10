@@ -71,7 +71,7 @@ async def shutdown(ctx):
 
 	await ctx.channel.send("Shutting down...")
 	conn.commit() # Ensure that everything was saved
-	sys.exit(1)
+	exit(1)
 
 ################ MODERATION COMMANDS ##################
 
