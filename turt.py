@@ -56,6 +56,7 @@ async def on_ready():
 #Input error handling
 @bot.event
 async def on_command_error(ctx, error):
+	print(error)
 	await ctx.send_help(ctx.command)
 
 @bot.event
@@ -80,7 +81,7 @@ class Channels(commands.Cog):
 		self.bot = bot
 
 	@commands.Command
-	async def prune(self, ctx, n=None):
+	async def prune(self, ctx, n:int=None):
 		'''Deletes the previous n number of messages (Up to 99)'''
 
 		if not is_whitelisted(ctx.author.id): return
@@ -88,7 +89,7 @@ class Channels(commands.Cog):
 		if n > 99:
 			await ctx.channel.send("You can only prune up to 99 messages.")
 			return
-	
+
 		#usage statement sent when command incorrectly invoked
 		usage = "`" + usage_prefix + "prune [number_to_remove]`"
 		if n == None: 
