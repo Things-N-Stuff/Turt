@@ -114,7 +114,7 @@ class Voting(commands.Cog):
 		self.check_votes.start()
 
 	@commands.Command
-	async def callvote(self, ctx, name:str, desc:str, num_days:int):
+	async def callvote(self, ctx, name:str, desc:str, num_days:int, thumbnail:str=None):
 		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour)'''
 
 		# The election channel must be configured in order to create elections
@@ -143,7 +143,7 @@ class Voting(commands.Cog):
 		# Send election message in election channel
 		election_embed = discord.Embed()
 		election_embed.set_author(name="Initiated by " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
-		#election_embed.set_thumbnail(url=ctx.author.avatar_url)
+		if thumbnail is not None: election_embed.set_thumbnail(url=thumbnail)
 		election_embed.title = "New Election: " + name.title()
 		election_embed.description = desc.capitalize()
 		election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
@@ -155,7 +155,7 @@ class Voting(commands.Cog):
 		election_embed.add_field(name="ID", value="`"+str(electionID+1)+"`", inline=True) #We want this as code block to make it look good
 		message = await bot.get_channel(voting_channel_id).send(embed=election_embed) #Send it to the voting channel
 
-		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?)", (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime))
+		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, thumbnail))
 		conn.commit()
 
 		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
@@ -188,6 +188,7 @@ class Voting(commands.Cog):
 			name_index = 4
 			desc_index = 5
 			end_time_index = 6
+			thumbnail_index = 7
 			for row in cursor.fetchall():
 				server_id = row[server_index]
 
@@ -247,6 +248,7 @@ class Voting(commands.Cog):
 					vote_embed = discord.Embed()
 					vote_embed.title = "Election Concluded: " + row[name_index].title()
 					vote_embed.description = message
+					if row[thumbnail_index] is not None: vote_embed.set_thumbnail(url=row[thumbnail_index])
 					vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
 					vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
 					vote_embed.add_field(name="Yes", value=yes, inline=True)
