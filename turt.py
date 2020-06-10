@@ -58,7 +58,7 @@ async def on_ready():
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
 
-@bot.command
+@bot.command()
 async def shutdown(ctx):
 	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot'''	
 
@@ -66,7 +66,7 @@ async def shutdown(ctx):
 
 	await ctx.channel.send("Shutting down...")
 	conn.commit() # Ensure that everything was saved
-	sys.exit(1)
+	exit(1)
 
 ################ MODERATION COMMANDS ##################
 
