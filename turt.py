@@ -168,7 +168,7 @@ class Voting(commands.Cog):
 		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
 		conn.commit()
 
-		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
+		await ctx.channel.send("Election created! Vote ends in " + additional_hours + " Hours.")
 
 	@commands.Command
 	async def electionchannel(self, ctx, channelid:int):
