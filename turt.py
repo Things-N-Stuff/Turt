@@ -39,6 +39,21 @@ db_file = "sqlite_database"
 
 cursor = None
 
+#For the reaction emojis - Note how each number string relates to index
+numbers = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"] 
+numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numbers
+						b'2\xef\xb8\x8f\xe2\x83\xa3',
+						b'3\xef\xb8\x8f\xe2\x83\xa3',
+						b'4\xef\xb8\x8f\xe2\x83\xa3',
+						b'5\xef\xb8\x8f\xe2\x83\xa3',
+						b'6\xef\xb8\x8f\xe2\x83\xa3',
+						b'7\xef\xb8\x8f\xe2\x83\xa3',
+						b'8\xef\xb8\x8f\xe2\x83\xa3',
+						b'9\xef\xb8\x8f\xe2\x83\xa3']
+
+thumbsup = b'\xf0\x9f\x91\x8d'
+thumbsdown = b'\xf0\x9f\x91\x8e'
+
 ################ BOT STUFF ############################
 
 @bot.event
@@ -154,8 +169,10 @@ class Voting(commands.Cog):
 		self.check_votes.start()
 
 	@commands.Command
-	async def callvote(self, ctx, name:str, desc:str, num_days:int, thumbnail:str=None):
+	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
 		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour)'''
+
+		#return # I dont want to actually call a vote
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -170,14 +187,14 @@ class Voting(commands.Cog):
 		# Make sure the user has not voted in the last 12 hours in any election
 		next_time_index = 1 # The index of when the user can create an election next
 		current_time_in_hours = int(time.time()/3600) #Round down
-		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
+		'''cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
 		first = cursor.fetchone()
 		next_time = 0
 		if first is None: determine_if_user_exists(ctx.author.id,) #Add the user to the database if they are not there
 		else: next_time = first[next_time_index]
 		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 6 hours
 			await ctx.channel.send("You can only create an election every 12 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
-			return
+			return'''
 
 		# The user must supply a minimum of 1 day in order to give time for people to vote
 		if num_days < 1:
@@ -195,25 +212,47 @@ class Voting(commands.Cog):
 		electionID = cursor.fetchone()[0]
 		if electionID is None: electionID = -1 # If there are no elections right now, then we want to do make the id 0 (Note: adds 1)
 
+		# Getting all the options (If none are given, then this is a yes/no election, not multi option)
+		if len(argv) > 9:
+			await ctx.channel.send("You can only supply up to 9 choices for an election.")
+			return
+		multi_option = len(argv) > 0
+		options = [None] * 9
+		for i in range(len(argv)): #add all this stuff to the new list with length 9
+			options[i] = argv[i]
+
 		# Send election message in election channel
 		election_embed = discord.Embed()
 		election_embed.set_author(name="Initiated by " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
-		if thumbnail is not None: election_embed.set_thumbnail(url=thumbnail)
 		election_embed.title = "New Election: " + name.title()
 		election_embed.description = desc.capitalize()
-		election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
+		if multi_option is False: #not multioption
+			election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
+		else: #Is multioption
+			election_embed.set_footer(text="Vote by reacting with the matching number emoji.")
 		
 		#Time left field
 		election_embed.add_field(name="Time Left", value=str(additional_hours) + " Hours", inline=True)
 
 		election_embed.add_field(name="ID", value="`"+str(electionID+1)+"`", inline=True) #We want this as code block to make it look good
+
+		if multi_option is True: #Lets put all the options
+			all_options = ""
+			for i in range(len(argv)): #TODO: Figure out  how to clean this crap up
+				number = ":" + numbers[i] + ":"
+				all_options += number + " " + argv[i] + "\n"
+			election_embed.add_field(name="Options:", value=all_options, inline=False)
+
 		message = await bot.get_channel(voting_channel_id).send(embed=election_embed) #Send it to the voting channel
 
-		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, thumbnail))
+		# Store the election in the database
+		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+											(electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
+											options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8]))
 		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
 		conn.commit()
 
-		await ctx.channel.send("Election created! Vote ends in " + additional_hours + " Hours.")
+		await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
 
 	@commands.Command
 	async def electionchannel(self, ctx, channelid:int):
@@ -243,10 +282,11 @@ class Voting(commands.Cog):
 		name_index = 4
 		desc_index = 5
 		end_time_index = 6
-		thumbnail_index = 7
+		multi_option_indicator_index = 7
+		option_start_index = 8
 		for row in cursor.fetchall():
+			#Election info needed to check status and update time
 			server_id = row[server_index]
-
 			vote_channel_id = None
 			cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
 			result = cursor.fetchone()
@@ -257,66 +297,105 @@ class Voting(commands.Cog):
 
 			if vote_channel_id == -1: return # The server election channel has not been setup yet
 
-			#Update time
 			channel = bot.get_channel(int(vote_channel_id))
 			election_message = await channel.fetch_message(row[message_id_index])
 
 			current_time_in_minutes = int(time.time()/60) # Round it down
-			time_left = row[end_time_index] - ceil(current_time_in_minutes/60) # Round up
-
-			message = ""
-			if time_left < 1:
-				message = str(current_time_in_minutes - row[end_time_index]*60) + " Minutes"
-			else:
-				message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
-
-			print(message)
-
-			embed = election_message.embeds[0]
-			embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
-			await election_message.edit(embed=embed)
 
 			#If the vote is over:
 			if int(current_time_in_minutes/60) > row[end_time_index]: #Vote has concluded
 				# Send message to channel
 
-				if vote_channel_id == -1: return
+				# If the channel isnt set up, then dont do anything for this server (Note that other server elections are in this same list)
+				if vote_channel_id == -1: continue
 
-				yes=0
-				no=0
-
+				# The original election message (so we can get the number of votes for each option or yes/no
 				channel = bot.get_channel(int(vote_channel_id))
-				message = await channel.fetch_message(row[message_id_index])
+				election_message = await channel.fetch_message(row[message_id_index])
 
-				for reaction in message.reactions:
-					if reaction.emoji == "👍":
-						yes = reaction.count
-					if reaction.emoji == "👎":
-						no = reaction.count
-
-				message=""
-
-				if(yes > no): # Note that it has to be a simple majority (tie does not count)
-					message = "The majority voted :thumbsup:!"
-				elif(yes < no):
-					message = "The majority says :thumbsdown:!"
-				else:
-					message = "The vote was a tie! (Simple majority not acquired)"
 
 				#To say who initiated the vote, we need to get the member
 				user_id = row[initiating_user_index]
 				server = await bot.fetch_guild(server_id)
 				user = await server.fetch_member(user_id)
 
+				winner = "" # The description of the embed
+
 				#Vote conclusion embed message
 				vote_embed = discord.Embed()
 				vote_embed.title = "Election Concluded: " + row[name_index].title()
-				vote_embed.description = message
-				if row[thumbnail_index] is not None: vote_embed.set_thumbnail(url=row[thumbnail_index])
 				vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
 				vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
-				vote_embed.add_field(name="Yes", value=yes, inline=True)
-				vote_embed.add_field(name="No", value=no, inline=True)
+				if row[multi_option_indicator_index] == 0: #not multioption
+					#Determine the number of votes for yes and no
+					yes=0
+					no=0
+	
+					for reaction in election_message.reactions:
+						if reaction.emoji == thumbsup.decode() : yes = reaction.count
+						if reaction.emoji == thumbsup.decode() : no = reaction.count
+	
+					if(yes > no): # Note that it has to be a simple majority (tie does not count)
+						winner = "The majority voted :thumbsup:!"
+					elif(yes < no):
+						winner = "The majority voted :thumbsdown:!"
+					else:
+						winner = "The vote was a tie! (Simple majority not acquired)"
+
+					vote_embed.add_field(name="Yes", value=yes, inline=True)
+					vote_embed.add_field(name="No", value=no, inline=True)
+				else: #Multi option
+					#Now we have to grab all the options from the database
+					options = []
+					for i in range(9): #Max options
+						if row[option_start_index + i] is None: #There are no more options to get
+							break
+						else:
+							options.append(row[option_start_index + i])
+						
+					#Now display the options
+					all_options = ""
+					votes_for_each_option = [0] * len(options)
+					for i in range(len(options)):
+						#Put the right number in front
+						number = ":" + numbers[i] + ":"
+						emoji = numbers_emoji_bytes[i].decode()
+						#Get the number of votes for this option
+						total_votes = 0
+						for reaction in election_message.reactions: #TODO: There has to be a more efficient way to get a specific reaction
+							if reaction.emoji == emoji:
+								total_votes = reaction.count
+								break;
+						all_options += number + " " + options[i] + ": `" + str(total_votes) + "`\n"
+						votes_for_each_option[i] = total_votes
+					vote_embed.add_field(name="Options:", value=all_options, inline=False)
+					#Pick the winner (The highest vote count)
+				
+					largest_vote = max(votes_for_each_option) #Highest number
+					if largest_vote == 0:
+						winner = "Nobody voted!"
+					else:
+						# Determine if there is a tie
+						tied = []
+						for i in range(len(votes_for_each_option)):
+							if votes_for_each_option[i] == largest_vote:
+								tied.append(i) #We want to store the index so that we can get it later
+
+						if len(tied) > 1: #Then there is a tie (There could be a tie between all 9, too)
+							winner = "There was a tie between "
+							for i in tied:
+								if i == len(tied)-2: #Special formatting to make it look like a sentence
+									winner += "**'" + options[i] + "**', and "
+								elif i == len(tied):
+									winner += "**'" + options[i] + "**'!"
+								else:
+									winner += "**'" + options[i] + "**', "
+	
+						else: #There is one outright winner
+							winner = "The majority voted **'" + options[tied[0]] + "'**!"#Remember there should only be the largest value in the `tied` list
+
+				vote_embed.description = winner
+
 				vote_embed.set_footer(text="ID: " + str(row[election_id_index]))
 
 				channel = bot.get_channel(int(vote_channel_id))
@@ -328,13 +407,28 @@ class Voting(commands.Cog):
 
 				# Fix original message
 				channel = bot.get_channel(int(vote_channel_id))
-				message = await channel.fetch_message(row[message_id_index])
-
-				embed = message.embeds[0]
+				election_message = await channel.fetch_message(row[message_id_index])
+				
+				embed = election_message.embeds[0]
 				embed.set_field_at(index=0, name="Time Left", value="Election Ended", inline=True)
-				await message.edit(embed=embed)
-					
-				# TODO:Enforce the vote (implement later)
+				await election_message.edit(embed=embed)
+
+				return #It has ended
+
+			# The thing has not ended, so we should update the time until it does
+
+			#Update time
+			time_left = row[end_time_index] - ceil(current_time_in_minutes/60) # Round up
+
+			message = ""
+			if time_left < 1:
+				message = str(current_time_in_minutes - row[end_time_index]*60) + " Minutes"
+			else:
+				message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
+
+			embed = election_message.embeds[0]
+			embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
+			await election_message.edit(embed=embed)
 
 ################ UTILITY FUNCTIONS #####################
 
