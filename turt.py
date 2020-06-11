@@ -18,6 +18,7 @@ from time import sleep
 import os
 from threading import Thread
 import asyncio
+from math import ceil
 
 #import config
 try:
@@ -37,8 +38,6 @@ usage_prefix = "usage - " + bot_prefix
 db_file = "sqlite_database"
 
 cursor = None
-
-has_checked_votes = False
 
 ################ BOT STUFF ############################
 
@@ -187,7 +186,7 @@ class Voting(commands.Cog):
 
 		#Getting time
 		hours_in_day = 24
-		additional_hours = round(hours_in_day*(num_days))
+		additional_hours = ceil(hours_in_day*(num_days)) #Round up
 		endTime = current_time_in_hours + additional_hours # in hours
 		endTimeAsDate = datetime.now().replace(microsecond=0, second=0, minute=0) + timedelta(hours=additional_hours) + timedelta(hours=1) #Hours should round up
 
@@ -214,7 +213,7 @@ class Voting(commands.Cog):
 		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
 		conn.commit()
 
-		await ctx.channel.send("Election created! Vote ends at " + str(endTimeAsDate))
+		await ctx.channel.send("Election created! Vote ends in " + additional_hours + " Hours.")
 
 	@commands.Command
 	async def electionchannel(self, ctx, channelid:int):
@@ -230,110 +229,112 @@ class Voting(commands.Cog):
 			await ctx.channel.send("Channel with id '" + str(channelid) + "' does not exist on this server.")
 
 
-	@tasks.loop(seconds=59) 
+	@tasks.loop(seconds=60) 
 	async def check_votes(self):
 		await self.bot.wait_until_ready()
-		if datetime.now().minute == 0 or not has_checked_votes: #Now check all
-			cursor.execute("SELECT * FROM elections")
-			current_time_in_hours = int(time.time()/3600) # Round down
-			election_id_index = 0
-			message_id_index = 1
-			server_index = 2
-			initiating_user_index = 3
-			name_index = 4
-			desc_index = 5
-			end_time_index = 6
-			thumbnail_index = 7
-			for row in cursor.fetchall():
-				server_id = row[server_index]
 
-				vote_channel_id = None
-				cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
-				result = cursor.fetchone()
-				if result is None: # The server isnt stored in the database, so add it
-					determine_if_server_exists()
-					return
-				else: vote_channel_id = result[1]
+		#Update the time
+		cursor.execute("SELECT * FROM elections")
+		current_time_in_hours = int(time.time()/3600) # Round down
+		election_id_index = 0
+		message_id_index = 1
+		server_index = 2
+		initiating_user_index = 3
+		name_index = 4
+		desc_index = 5
+		end_time_index = 6
+		thumbnail_index = 7
+		for row in cursor.fetchall():
+			server_id = row[server_index]
 
-				if vote_channel_id == -1: return # The server election channel has not been setup yet
+			vote_channel_id = None
+			cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
+			result = cursor.fetchone()
+			if result is None: # The server isnt stored in the database, so add it
+				determine_if_server_exists()
+				return
+			else: vote_channel_id = result[1]
 
-				#Update time
+			if vote_channel_id == -1: return # The server election channel has not been setup yet
+
+			#Update time
+			channel = bot.get_channel(int(vote_channel_id))
+			election_message = await channel.fetch_message(row[message_id_index])
+
+			current_time_in_minutes = int(time.time()/60) # Round it down
+			time_left = row[end_time_index] - ceil(current_time_in_minutes/60) # Round up
+
+			message = ""
+			if time_left < 1:
+				message = str(current_time_in_minutes - row[end_time_index]*60) + " Minutes"
+			else:
+				message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
+
+			print(message)
+
+			embed = election_message.embeds[0]
+			embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
+			await election_message.edit(embed=embed)
+
+			#If the vote is over:
+			if int(current_time_in_minutes/60) > row[end_time_index]: #Vote has concluded
+				# Send message to channel
+
+				if vote_channel_id == -1: return
+
+				yes=0
+				no=0
+
 				channel = bot.get_channel(int(vote_channel_id))
-				election_message = await channel.fetch_message(row[message_id_index])
+				message = await channel.fetch_message(row[message_id_index])
 
-				current_time_in_hours = int(time.time()/3600) # Round it down
-				time_left = row[end_time_index] - current_time_in_hours
+				for reaction in message.reactions:
+					if reaction.emoji == "👍":
+						yes = reaction.count
+					if reaction.emoji == "👎":
+						no = reaction.count
 
-				message = ""
-				if time_left < 1:
-					message = "< 1 Hour"
+				message=""
+
+				if(yes > no): # Note that it has to be a simple majority (tie does not count)
+					message = "The majority voted :thumbsup:!"
+				elif(yes < no):
+					message = "The majority says :thumbsdown:!"
 				else:
-					message = str(time_left) + " Hours"
+					message = "The vote was a tie! (Simple majority not acquired)"
 
-				embed = election_message.embeds[0]
-				embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
-				await election_message.edit(embed=embed)
+				#To say who initiated the vote, we need to get the member
+				user_id = row[initiating_user_index]
+				server = await bot.fetch_guild(server_id)
+				user = await server.fetch_member(user_id)
 
-				#If the vote is over:
-				if current_time_in_hours > row[end_time_index]: #Vote has concluded
-					# Send message to channel
+				#Vote conclusion embed message
+				vote_embed = discord.Embed()
+				vote_embed.title = "Election Concluded: " + row[name_index].title()
+				vote_embed.description = message
+				if row[thumbnail_index] is not None: vote_embed.set_thumbnail(url=row[thumbnail_index])
+				vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
+				vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
+				vote_embed.add_field(name="Yes", value=yes, inline=True)
+				vote_embed.add_field(name="No", value=no, inline=True)
+				vote_embed.set_footer(text="ID: " + str(row[election_id_index]))
 
-					if vote_channel_id == -1: return
+				channel = bot.get_channel(int(vote_channel_id))
+				await channel.send(embed=vote_embed)
 
-					yes=0
-					no=0
+				# Remove election from database
+				cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
+				conn.commit()
 
-					channel = bot.get_channel(int(vote_channel_id))
-					message = await channel.fetch_message(row[message_id_index])
+				# Fix original message
+				channel = bot.get_channel(int(vote_channel_id))
+				message = await channel.fetch_message(row[message_id_index])
 
-					for reaction in message.reactions:
-						if reaction.emoji == "👍":
-							yes = reaction.count
-						if reaction.emoji == "👎":
-							no = reaction.count
-
-					message=""
-
-					if(yes > no): # Note that it has to be a simple majority (tie does not count)
-						message = "The majority voted :thumbsup:!"
-					elif(yes < no):
-						message = "The majority says :thumbsdown:!"
-					else:
-						message = "The vote was a tie! (Simple majority not acquired)"
-
-					#To say who initiated the vote, we need to get the member
-					user_id = row[initiating_user_index]
-					server = await bot.fetch_guild(server_id)
-					user = await server.fetch_member(user_id)
-
-					#Vote conclusion embed message
-					vote_embed = discord.Embed()
-					vote_embed.title = "Election Concluded: " + row[name_index].title()
-					vote_embed.description = message
-					if row[thumbnail_index] is not None: vote_embed.set_thumbnail(url=row[thumbnail_index])
-					vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
-					vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
-					vote_embed.add_field(name="Yes", value=yes, inline=True)
-					vote_embed.add_field(name="No", value=no, inline=True)
-					vote_embed.set_footer(text="ID: " + str(row[election_id_index]))
-
-					channel = bot.get_channel(int(vote_channel_id))
-					await channel.send(embed=vote_embed)
-
-					# Remove election from database
-					cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
-					conn.commit()
-
-					# Fix original message
-					channel = bot.get_channel(int(vote_channel_id))
-					message = await channel.fetch_message(row[message_id_index])
-
-					embed = message.embeds[0]
-					embed.set_field_at(index=0, name="Time Left", value="Election Ended", inline=True)
-					await message.edit(embed=embed)
+				embed = message.embeds[0]
+				embed.set_field_at(index=0, name="Time Left", value="Election Ended", inline=True)
+				await message.edit(embed=embed)
 					
-					# TODO:Enforce the vote (implement later)
-			has_checked_votes = True
+				# TODO:Enforce the vote (implement later)
 
 ################ UTILITY FUNCTIONS #####################
 
