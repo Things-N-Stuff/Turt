@@ -307,7 +307,8 @@ class Voting(commands.Cog):
 				# Send message to channel
 
 				# If the channel isnt set up, then dont do anything for this server (Note that other server elections are in this same list)
-				if vote_channel_id == -1: continue
+				if vote_channel_id == -1: 
+					continue
 
 				# The original election message (so we can get the number of votes for each option or yes/no
 				channel = bot.get_channel(int(vote_channel_id))
@@ -333,7 +334,7 @@ class Voting(commands.Cog):
 	
 					for reaction in election_message.reactions:
 						if reaction.emoji == thumbsup.decode() : yes = reaction.count
-						if reaction.emoji == thumbsup.decode() : no = reaction.count
+						if reaction.emoji == thumbsdown.decode() : no = reaction.count
 	
 					if(yes > no): # Note that it has to be a simple majority (tie does not count)
 						winner = "The majority voted :thumbsup:!"
