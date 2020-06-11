@@ -38,6 +38,8 @@ db_file = "sqlite_database"
 
 cursor = None
 
+has_checked_votes = False
+
 ################ BOT STUFF ############################
 
 @bot.event
@@ -168,7 +170,7 @@ class Voting(commands.Cog):
 
 		# Make sure the user has not voted in the last 12 hours in any election
 		next_time_index = 1 # The index of when the user can create an election next
-		current_time_in_hours = int(round(time.time()/3600))
+		current_time_in_hours = int(time.time()/3600) #Round down
 		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
 		first = cursor.fetchone()
 		next_time = 0
@@ -186,7 +188,7 @@ class Voting(commands.Cog):
 		#Getting time
 		hours_in_day = 24
 		additional_hours = round(hours_in_day*(num_days))
-		endTime = int(round(time.time()/3600)) + additional_hours # in hours
+		endTime = current_time_in_hours + additional_hours # in hours
 		endTimeAsDate = datetime.now().replace(microsecond=0, second=0, minute=0) + timedelta(hours=additional_hours) + timedelta(hours=1) #Hours should round up
 
 		
@@ -203,7 +205,6 @@ class Voting(commands.Cog):
 		election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
 		
 		#Time left field
-		#current_time_in_hours = int(round(time.time()/3600))
 		election_embed.add_field(name="Time Left", value=str(additional_hours) + " Hours", inline=True)
 
 		election_embed.add_field(name="ID", value="`"+str(electionID+1)+"`", inline=True) #We want this as code block to make it look good
@@ -232,10 +233,9 @@ class Voting(commands.Cog):
 	@tasks.loop(seconds=59) 
 	async def check_votes(self):
 		await self.bot.wait_until_ready()
-		has_checked_votes = False
 		if datetime.now().minute == 0 or not has_checked_votes: #Now check all
 			cursor.execute("SELECT * FROM elections")
-			current_time_in_hours = int(round(time.time()/3600))
+			current_time_in_hours = int(time.time()/3600) # Round down
 			election_id_index = 0
 			message_id_index = 1
 			server_index = 2
@@ -261,7 +261,7 @@ class Voting(commands.Cog):
 				channel = bot.get_channel(int(vote_channel_id))
 				election_message = await channel.fetch_message(row[message_id_index])
 
-				current_time_in_hours = int(round(time.time()/3600))
+				current_time_in_hours = int(time.time()/3600) # Round it down
 				time_left = row[end_time_index] - current_time_in_hours
 
 				message = ""
