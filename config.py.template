@@ -3,6 +3,10 @@
 
 bot_token = 'insert bot token here'
 
+# The bot's id (You can get it by right clicking on the bot user)
+# You will have to run the bot first and add it to a server before you get its id
+bot_user_id = 
+
 # Custom string printed in the default help message
 bot_description = 'Moderation bot'
 

@@ -20,10 +20,19 @@ from threading import Thread
 import asyncio
 from math import ceil
 
+#Set up error logging
+import logging
+logger = logging.getLogger('discord')
+logger.setLevel(logging.ERROR)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+
 #import config
 try:
-	from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels, shutdown_admins
-except:
+	from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels, shutdown_admins, bot_user_id
+except Exception as e:
+	logger.log(e)
 	print("Turt bot is not configured. In order to run the bot, Turt must be configured in the config.py.template file.")
 	exit(-1)
 
@@ -51,8 +60,21 @@ numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numb
 						b'8\xef\xb8\x8f\xe2\x83\xa3',
 						b'9\xef\xb8\x8f\xe2\x83\xa3']
 
+encoded_number_emojis = [b'1\xef\xb8\x8f\xe2\x83\xa3'.decode(), #Look at the beginning numbers
+						b'2\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'3\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'4\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'5\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'6\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'7\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'8\xef\xb8\x8f\xe2\x83\xa3'.decode(),
+						b'9\xef\xb8\x8f\xe2\x83\xa3'.decode()]
+
 thumbsup = b'\xf0\x9f\x91\x8d'
 thumbsdown = b'\xf0\x9f\x91\x8e'
+
+new_election = "New Election: "
+election_over = "Election Concluded: "
 
 ################ BOT STUFF ############################
 
@@ -68,6 +90,9 @@ async def on_ready():
 	await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='Moderating'))
 	print("Putting all users in database...")
 	await setup_database_with_all_users()
+	print("Deleting unwanted reactions from elections...")
+	await delete_unwanted_election_reactions()
+	print("Ready!")
 
 #Input error handling
 @bot.event
@@ -170,9 +195,7 @@ class Voting(commands.Cog):
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour)'''
-
-		#return # I dont want to actually call a vote
+		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).\nElections can only be called every 24 hours.'''
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -187,14 +210,14 @@ class Voting(commands.Cog):
 		# Make sure the user has not voted in the last 12 hours in any election
 		next_time_index = 1 # The index of when the user can create an election next
 		current_time_in_hours = int(time.time()/3600) #Round down
-		'''cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
+		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
 		first = cursor.fetchone()
 		next_time = 0
 		if first is None: determine_if_user_exists(ctx.author.id,) #Add the user to the database if they are not there
 		else: next_time = first[next_time_index]
-		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 6 hours
-			await ctx.channel.send("You can only create an election every 12 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
-			return'''
+		if next_time != None and next_time != "" and next_time != 0 and next_time > current_time_in_hours: #The person has voted in the last 24 hours
+			await ctx.channel.send("You can only create an election every 24 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
+			return
 
 		# The user must supply a minimum of 1 day in order to give time for people to vote
 		if num_days < 1:
@@ -224,7 +247,7 @@ class Voting(commands.Cog):
 		# Send election message in election channel
 		election_embed = discord.Embed()
 		election_embed.set_author(name="Initiated by " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
-		election_embed.title = "New Election: " + name.title()
+		election_embed.title = new_election + name.title()
 		election_embed.description = desc.capitalize()
 		if multi_option is False: #not multioption
 			election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
@@ -267,6 +290,38 @@ class Voting(commands.Cog):
 		else:
 			await ctx.channel.send("Channel with id '" + str(channelid) + "' does not exist on this server.")
 
+	@commands.Cog.listener()
+	async def on_raw_reaction_add(self, payload):
+		'''Delete all unwanted reactions'''
+
+		# Get message
+		message = await bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+
+		# Determine if the message is a vote message
+		embeds = message.embeds
+		if message.author.id == bot_user_id: 
+			if len(embeds) != 0 and embeds[0].title.startswith(new_election):
+				pass
+				#This is an election message, neat
+			else: #Not an election message
+				return 
+		else: #Not the bot
+			return
+			
+
+		# Determine if the election is a yes/no or a multi-option election
+		# Yes/No elections will not have an options field
+		election_embed = embeds[0]
+		options_field_index = 2
+		embeds = message.embeds
+		if len(election_embed.fields) >= options_field_index+1 and election_embed.fields[options_field_index].name == "Options:": #This is a multi-option election
+			#if isinstance(payload.emoji, discord.Emoji): continue #Elections will never use custom emojis
+			if str(payload.emoji).encode() not in numbers_emoji_bytes: #DELETE IT
+				await message.clear_reaction(payload.emoji)
+		else: # A Yes/no election
+			#if isinstance(payload.emoji, discord.Emoji): continue #Elections will never use custom emojis
+			if str(payload.emoji).encode() != thumbsup and str(payload.emoji).encode() != thumbsdown: #DELETE IT
+				await message.clear_reaction(payload.emoji)
 
 	@tasks.loop(seconds=60) 
 	async def check_votes(self):
@@ -324,7 +379,7 @@ class Voting(commands.Cog):
 
 				#Vote conclusion embed message
 				vote_embed = discord.Embed()
-				vote_embed.title = "Election Concluded: " + row[name_index].title()
+				vote_embed.title = election_over + row[name_index].title()
 				vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
 				vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
 				if row[multi_option_indicator_index] == 0: #not multioption
@@ -435,6 +490,40 @@ class Voting(commands.Cog):
 
 def is_whitelisted(user_id):
 	return user_id in bot_admins
+
+async def delete_unwanted_election_reactions():
+	cursor.execute("SELECT ElectionChannelID FROM servers")
+	print("Iterating all channels")
+	for election_channel_id in cursor.fetchall(): #Iterate through all the voting channels
+		election_channel_id = election_channel_id[0]
+		if election_channel_id == -1: return # The server does not have the election channel set up, so ignore it
+		channel = await bot.fetch_channel(election_channel_id)
+		cursor.execute("SELECT MessageID FROM elections")
+		print("Iterating all messages")
+		for election_message_id in cursor.fetchall(): #Get each message ID
+			election_message_id = election_message_id[0]
+			try:
+				message = await channel.fetch_message(election_message_id)
+				reactions = message.reactions
+				options_field_index = 2
+				embeds = message.embeds
+				election_embed = embeds[0]
+				if len(election_embed.fields) >= options_field_index+1 and election_embed.fields[options_field_index].name == "Options:": #This is a multi-option election
+					for reaction in reactions:
+						if isinstance(reaction.emoji, discord.Emoji): 
+							await reaction.clear() #Elections will never use custom emojis
+						elif reaction.emoji.encode() not in number_emoji_bytes: #DELETE IT
+							await reaction.clear()
+				else: # A Yes/no election
+					for reaction in reactions:
+						if isinstance(reaction.emoji, discord.Emoji): 
+							await reaction.clear() #Elections will never use custom emojis
+						elif reaction.emoji.encode() != thumbsup and reaction.emoji.encode() != thumbsdown: #DELETE IT
+							await reaction.clear()
+			except Exception as e:
+				print(e)
+				pass
+		
 
 ################ DATABASE FUNCTIONS ####################
 
