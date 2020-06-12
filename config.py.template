@@ -17,8 +17,5 @@ bot_admins = ( user_id1, user_id2, user_id3, )
 # NOTE: It is recommended that only the bot hoster have access to this command (and a few extremely trusted friends)
 shutdown_admins = ( user_id1, userid2, )
 
-# Tuple of channel ids that can only contain links
-link_only_channels = (channel1, channel2,)
-
 # Command prefix for the bot
 bot_prefix = './t '

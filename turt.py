@@ -152,15 +152,63 @@ class Channels(commands.Cog):
 	
 		history = await ctx.channel.history(limit=n).flatten()
 		await ctx.channel.delete_messages(history)
-	
+
+	@commands.Command
+	async def setlinkonly(self, ctx, channel_id:int, link_only:str="true"):
+		'''Update the link-only status of a channel.
+		Turt bot will delete all messages that are not links in link-only channels.
+		[link_only] needs to be either 1 (link_only) or 0 (not link_only). Sets to link-only by default if [link_only] not given.'''
+
+		if not is_whitelisted(ctx.author.id): return
+
+		link_only = link_only.lower()
+
+		#Determine if valid action is used (link_only is True or False)
+		if link_only != "true" and link_only != "false":
+			await ctx.channel.send("[link_only] must either be 'true' or 'false'.")
+			return
+
+		#Determine if the channel id is in this server
+		channel = await bot.fetch_channel(channel_id)
+		if channel is None or channel.guild.id != ctx.guild.id:
+			await ctx.channel.send("That channel does not exist in this server. Unable to change its link-only status.")
+			return
+
+		#Get all link only channels for this server
+		cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (ctx.guild.id,))
+		channels = cursor.fetchall()
+
+		#If making link only, make sure the channel is not already flagged as link only
+		if link_only == "true":
+			if (channel_id,) in channels:
+				await ctx.channel.send("That channel is already flagged as link-only.")
+				return
+			else:
+				cursor.execute("INSERT INTO linkonlychannels VALUES (?,?)", (channel_id, ctx.guild.id))
+				await ctx.channel.send("Set #" + channel.name + " to link-only.")
+
+		#If making not link only, make sure the channel is not already flagged as not link only
+		if link_only == "false":
+			if (channel_id,) not in channels:
+				await ctx.channel.send("That channel is not flagged as link-only.")
+				return
+			else:
+				cursor.execute("DELETE FROM linkonlychannels WHERE channelid=?", (channel_id,))
+				await ctx.channel.send("Set #" + channel.name + " to not link-only.")
+
+		conn.commit()
+
    	#Only allow links in certain channels (No extra content allowed)
 	@commands.Cog.listener()
 	async def on_message(self, msg):
 		'''Enforces messaging rules'''
 		
+		#Get the all link only channels in this server
+		cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (msg.guild.id,))
+		link_only_channels = cursor.fetchall()
 		#Determine if the message is posted in a link only channel
-		if msg.channel.id in link_only_channels:
-			#Determine if the entire message is a link (no other content allowed)
+		if (msg.channel.id,) in link_only_channels:
+			#Determine if the entire message is a link (no other content allowed, except for trailing)
 			result = urlparse(msg.content)
 			if not all([result.scheme, result.netloc, result.path]):
 				await msg.delete()
@@ -523,7 +571,6 @@ async def delete_unwanted_election_reactions():
 			except Exception as e:
 				pass
 		
-
 ################ DATABASE FUNCTIONS ####################
 
 def determine_if_server_exists(server_id): #And add the server if not
