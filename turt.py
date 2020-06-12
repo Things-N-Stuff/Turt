@@ -49,7 +49,7 @@ db_file = "sqlite_database"
 cursor = None
 
 #For the reaction emojis - Note how each number string relates to index
-numbers = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"] 
+numbers = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"] 
 numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numbers
 						b'2\xef\xb8\x8f\xe2\x83\xa3',
 						b'3\xef\xb8\x8f\xe2\x83\xa3',
@@ -58,7 +58,8 @@ numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numb
 						b'6\xef\xb8\x8f\xe2\x83\xa3',
 						b'7\xef\xb8\x8f\xe2\x83\xa3',
 						b'8\xef\xb8\x8f\xe2\x83\xa3',
-						b'9\xef\xb8\x8f\xe2\x83\xa3']
+						b'9\xef\xb8\x8f\xe2\x83\xa3',
+						b'\xf0\x9f\x94\x9f']
 
 thumbsup = b'\xf0\x9f\x91\x8d'
 thumbsdown = b'\xf0\x9f\x91\x8e'
@@ -185,7 +186,11 @@ class Voting(commands.Cog):
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).\nElections can only be called every 24 hours.'''
+		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
+			Elections can only be called every 24 hours.
+			Multi-option (up to 10 options) elections can be created by supplying up to 10 extra arguments each in quotations. 
+			If no extra options are given, then it will be a yes/no election.
+			'''
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -226,12 +231,12 @@ class Voting(commands.Cog):
 		if electionID is None: electionID = -1 # If there are no elections right now, then we want to do make the id 0 (Note: adds 1)
 
 		# Getting all the options (If none are given, then this is a yes/no election, not multi option)
-		if len(argv) > 9:
-			await ctx.channel.send("You can only supply up to 9 choices for an election.")
+		if len(argv) > 10:
+			await ctx.channel.send("You can only supply up to 10 choices for an election.")
 			return
 		multi_option = len(argv) > 0
-		options = [None] * 9
-		for i in range(len(argv)): #add all this stuff to the new list with length 9
+		options = [None] * 10
+		for i in range(len(argv)): #add all this stuff to the new list with length 10
 			options[i] = argv[i]
 
 		# Send election message in election channel
@@ -251,7 +256,7 @@ class Voting(commands.Cog):
 
 		if multi_option is True: #Lets put all the options
 			all_options = ""
-			for i in range(len(argv)): #TODO: Figure out  how to clean this crap up
+			for i in range(len(argv)): #TODO: Figure out how to clean this crap up
 				number = ":" + numbers[i] + ":"
 				all_options += number + " " + argv[i] + "\n"
 			election_embed.add_field(name="Options:", value=all_options, inline=False)
@@ -259,10 +264,10 @@ class Voting(commands.Cog):
 		message = await bot.get_channel(voting_channel_id).send(embed=election_embed) #Send it to the voting channel
 
 		# Store the election in the database
-		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 											(electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
-											options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8]))
-		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+12, ctx.author.id))
+											options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8], options[9]))
+		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
 		conn.commit()
 
 		await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
@@ -398,7 +403,7 @@ class Voting(commands.Cog):
 				else: #Multi option
 					#Now we have to grab all the options from the database
 					options = []
-					for i in range(9): #Max options
+					for i in range(10): #Max options
 						if row[option_start_index + i] is None: #There are no more options to get
 							break
 						else:
@@ -432,12 +437,12 @@ class Voting(commands.Cog):
 							if votes_for_each_option[i] == largest_vote:
 								tied.append(i) #We want to store the index so that we can get it later
 
-						if len(tied) > 1: #Then there is a tie (There could be a tie between all 9, too)
+						if len(tied) > 1: #Then there is a tie (There could be a tie between all 10, too)
 							winner = "There was a tie between "
 							for i in tied:
 								if i == len(tied)-2: #Special formatting to make it look like a sentence
 									winner += "**'" + options[i] + "**', and "
-								elif i == len(tied):
+								elif i == len(tied)-1:
 									winner += "**'" + options[i] + "**'!"
 								else:
 									winner += "**'" + options[i] + "**', "
@@ -488,13 +493,11 @@ def is_whitelisted(user_id):
 
 async def delete_unwanted_election_reactions():
 	cursor.execute("SELECT ElectionChannelID FROM servers")
-	print("Iterating all channels")
 	for election_channel_id in cursor.fetchall(): #Iterate through all the voting channels
 		election_channel_id = election_channel_id[0]
 		if election_channel_id == -1: return # The server does not have the election channel set up, so ignore it
 		channel = await bot.fetch_channel(election_channel_id)
 		cursor.execute("SELECT MessageID FROM elections")
-		print("Iterating all messages")
 		for election_message_id in cursor.fetchall(): #Get each message ID
 			election_message_id = election_message_id[0]
 			try:
@@ -518,7 +521,6 @@ async def delete_unwanted_election_reactions():
 						elif reaction.emoji.encode() != thumbsup and reaction.emoji.encode() != thumbsdown: #DELETE IT
 							await reaction.clear()
 			except Exception as e:
-				print(e)
 				pass
 		
 
@@ -557,7 +559,7 @@ conn = None
 try:
 	conn = sqlite3.connect(db_file)
 	cursor = conn.cursor()
-except Error as e:
+except Exception as e:
 	print(e);
 	print("Unable to create a connection with sqlite database `sqlite_database`. It could be corrupted.")
 	exit(-2)
