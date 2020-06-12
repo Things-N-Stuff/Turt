@@ -508,14 +508,11 @@ class Voting(commands.Cog):
 				cursor.execute("DELETE FROM elections WHERE ElectionID=?", (row[election_id_index],))
 				conn.commit()
 
-				# Fix original message
+				# Delete original message (All information from it is in the conclusion message, so nothing is lost
 				channel = bot.get_channel(int(vote_channel_id))
 				election_message = await channel.fetch_message(row[message_id_index])
+				await election_message.delete()
 				
-				embed = election_message.embeds[0]
-				embed.set_field_at(index=0, name="Time Left", value="Election Ended", inline=True)
-				await election_message.edit(embed=embed)
-
 				return #It has ended
 
 			# The thing has not ended, so we should update the time until it does
