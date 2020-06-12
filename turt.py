@@ -30,9 +30,8 @@ logger.addHandler(handler)
 
 #import config
 try:
-	from config import bot_token, bot_admins, bot_prefix, bot_description, link_only_channels, shutdown_admins, bot_user_id
+	from config import bot_token, bot_admins, bot_prefix, bot_description, shutdown_admins, bot_user_id
 except Exception as e:
-	logger.log(e)
 	print("Turt bot is not configured. In order to run the bot, Turt must be configured in the config.py.template file.")
 	exit(-1)
 
