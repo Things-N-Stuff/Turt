@@ -170,9 +170,7 @@ class Voting(commands.Cog):
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour)'''
-
-		#return # I dont want to actually call a vote
+		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).\nElections can only be called every 24 hours.'''
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -187,14 +185,14 @@ class Voting(commands.Cog):
 		# Make sure the user has not voted in the last 12 hours in any election
 		next_time_index = 1 # The index of when the user can create an election next
 		current_time_in_hours = int(time.time()/3600) #Round down
-		'''cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
+		cursor.execute("SELECT * FROM users WHERE UserID=?", (ctx.author.id,))# b/c nobody has that userid
 		first = cursor.fetchone()
 		next_time = 0
 		if first is None: determine_if_user_exists(ctx.author.id,) #Add the user to the database if they are not there
 		else: next_time = first[next_time_index]
-		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 6 hours
-			await ctx.channel.send("You can only create an election every 12 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
-			return'''
+		if next_time is not None and next_time is not "" and next_time is not 0 and next_time > current_time_in_hours: #The person has voted in the last 24 hours
+			await ctx.channel.send("You can only create an election every 24 hours. You will be able to create an election in " + str(next_time - current_time_in_hours) + " hours.")
+			return
 
 		# The user must supply a minimum of 1 day in order to give time for people to vote
 		if num_days < 1:
