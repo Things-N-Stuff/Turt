@@ -478,7 +478,7 @@ class Voting(commands.Cog):
 
 			message = ""
 			if time_left < 1:
-				message = str(current_time_in_minutes - row[end_time_index]*60) + " Minutes"
+				message = str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
 			else:
 				message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
 
