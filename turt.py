@@ -60,16 +60,6 @@ numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numb
 						b'8\xef\xb8\x8f\xe2\x83\xa3',
 						b'9\xef\xb8\x8f\xe2\x83\xa3']
 
-encoded_number_emojis = [b'1\xef\xb8\x8f\xe2\x83\xa3'.decode(), #Look at the beginning numbers
-						b'2\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'3\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'4\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'5\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'6\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'7\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'8\xef\xb8\x8f\xe2\x83\xa3'.decode(),
-						b'9\xef\xb8\x8f\xe2\x83\xa3'.decode()]
-
 thumbsup = b'\xf0\x9f\x91\x8d'
 thumbsdown = b'\xf0\x9f\x91\x8e'
 
@@ -315,11 +305,16 @@ class Voting(commands.Cog):
 		options_field_index = 2
 		embeds = message.embeds
 		if len(election_embed.fields) >= options_field_index+1 and election_embed.fields[options_field_index].name == "Options:": #This is a multi-option election
-			#if isinstance(payload.emoji, discord.Emoji): continue #Elections will never use custom emojis
-			if str(payload.emoji).encode() not in numbers_emoji_bytes: #DELETE IT
+			if isinstance(payload.emoji, discord.Emoji): #Elections will never use custom emojis
+				await message.clear_reaction(payload.emoji)
+				return
+			emojis = numbers_emoji_bytes[0:len(election_embed.fields[options_field_index].value.split("\n"))] #Sublist
+			if str(payload.emoji).encode() not in emojis: #DELETE IT
 				await message.clear_reaction(payload.emoji)
 		else: # A Yes/no election
-			#if isinstance(payload.emoji, discord.Emoji): continue #Elections will never use custom emojis
+			if isinstance(payload.emoji, discord.Emoji):
+				await message.clear_reaction(payload.emoji) #Elections will never use custom emojis
+				return
 			if str(payload.emoji).encode() != thumbsup and str(payload.emoji).encode() != thumbsdown: #DELETE IT
 				await message.clear_reaction(payload.emoji)
 
@@ -512,7 +507,9 @@ async def delete_unwanted_election_reactions():
 					for reaction in reactions:
 						if isinstance(reaction.emoji, discord.Emoji): 
 							await reaction.clear() #Elections will never use custom emojis
-						elif reaction.emoji.encode() not in number_emoji_bytes: #DELETE IT
+							continue
+						emojis = numbers_emoji_bytes[0:len(election_embed.fields[options_field_index].value.split("\n"))] #Sublist
+						if reaction.emoji.encode() not in emojis: #DELETE IT
 							await reaction.clear()
 				else: # A Yes/no election
 					for reaction in reactions:
