@@ -44,15 +44,19 @@ If you wish to contribute to this list, [open an issue](https://github.com/Thing
 				- Options would be within the election embed
 	- All reactions that are not related to the election are removed by turt bot
 		- This includes number emojis that excede the number of options in a multi-option election
-	- All users can call elections with the `./t callvote` command (this may become a server specific setting in the future)
-		- Each user can only call an election once every 24 hours
+	- All users can call elections with the `./t callvote` command unless the server owner configured it otherwise.
+		- Each user can only call an election once every 24 hours, unless whitelisted.
+		- `./t allcancallvote <can_all_call_vote>` set whether or not all users will be able to create elections. Whitelisted users are unaffected.
+			- `<can_all_call_vote>` must either be "true" or "false"
+			- It is recommended to set this to false in public servers.
+	- Server owners can call `./t deleteelection <electionid>` in order to delete any election in their server. Useful to prevent trolling.
+		- `<electionid>` can be seen on the second field of an election message (next to `Time Left`)
 
 - Channel Moderation:
 	- `./t prune <n>` will delete the last `n` number of messages in the current channel (whitelist only)
 		- You can only prune up to 99 messages at one time
 	- `./t setlinkonly <channel_id> [true/false]` will set a channel's "link-only status" (whitelist only)
 		- When a channel is "link-only", only links will be able to be posted in that channel (messages following a link are allowed)
-			- Turt will delete any non-link messages
 		- If `[true/false]` is not supplied, turt will set the channel to link-only (as if `true` was supplied).
 		- The channel must be in the server you are calling the command from.
 
@@ -65,4 +69,4 @@ If you wish to contribute to this list, [open an issue](https://github.com/Thing
 	- The following commands can only be called by specific users, which are listed in the config file.
 		- It is recommended to only include the bot hoster and a few extremely trusted friends.
 	- `./t shutdown` shuts the bot down. Useful in case of an emergency and the bot hoster does not have physical access to the server the bost is hosted on.
-	- `./t restart` restarts the bot. Useful for applying updates or in case the bot starts acting up.
+	- `./t restart` restarts the bot. Useful for applying updates.
