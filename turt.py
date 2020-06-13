@@ -120,6 +120,9 @@ async def whitelist(ctx, userid:int, whitelisted:str):
 			cursor.execute("INSERT INTO whitelist VALUES(?,?)", (ctx.guild.id, userid))
 			conn.commit()
 			await ctx.channel.send("User successfully whitelisted")
+			#Now allow them to make elections without a timeout
+			cursor.execute("UPDATE users SET WhenCanVoteNext=0 WHERE userid=?", (userid,))
+			conn.commit()
 		else:
 			await ctx.channel.send("That user is already whitelisted on this server.")
 			return
@@ -353,7 +356,7 @@ class Voting(commands.Cog):
 		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 											(electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
 											options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8], options[9]))
-		cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
+		if not is_whitelisted(ctx.author.id, ctx.guild.id): cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
 		conn.commit()
 
 		await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
