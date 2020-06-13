@@ -30,7 +30,7 @@ logger.addHandler(handler)
 
 #import config
 try:
-	from config import bot_token, bot_admins, bot_prefix, bot_description, shutdown_admins, bot_user_id
+	from config import bot_token, bot_prefix, bot_description, shutdown_admins, bot_user_id
 except Exception as e:
 	print("Turt bot is not configured. In order to run the bot, Turt must be configured in the config.py.template file.")
 	exit(-1)
@@ -73,10 +73,6 @@ async def on_ready():
 	print("Discord.py " + discord.__version__)
 	print(f"{bot.user.name}: {bot.user.id}")
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
-	print("User ids whitelisted:")
-	for user_id in bot_admins:
-		if user_id != -1:
-			print("\t" + str(user_id))
 	await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='Moderating'))
 	print("Putting all users in database...")
 	await setup_database_with_all_users()
@@ -94,10 +90,46 @@ async def on_command_error(ctx, error):
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
 
-# Allow only specially whitelisted people to shut the bot down
+# Allow only server owners to whitelist users for ONLY their server (for using commands like `prune` and `electionchannel`
+@bot.command()
+async def whitelist(ctx, userid:int, whitelisted:str):
+	'''Whitelist a specific user for this server (so they can use commands like `prune`).
+	If a command requires whitelisting, then it is specified in the command's help message.
+	Only server owners can whitelist users for their server.'''
+	whitelisted = whitelisted.lower() #Make is case insensitive
+
+	#Determine if the user is allowed to whitelist other users (if they are server owner)
+	if ctx.guild.owner.id != ctx.author.id: return #Dont do anything if not
+
+	cursor.execute("SELECT userid FROM whitelist WHERE serverid=?", (ctx.guild.id,))
+	whitelisted_users = cursor.fetchall()
+
+	#If attempting to remove whitelist on the user
+	if whitelisted == "false":
+		if (userid,) in whitelisted_users:
+			cursor.execute("DELETE FROM whitelist WHERE userid=? AND serverid=?", (userid, ctx.guild.id,))
+			conn.commit()
+			await ctx.channel.send("User successfully unwhitelisted")
+		else:
+			await ctx.channel.send("That user is not whitelisted on this server.")
+			return
+
+	#If attempting to whitelist the user
+	elif whitelisted == "true":
+		if(userid,) not in whitelisted_users:
+			cursor.execute("INSERT INTO whitelist VALUES(?,?)", (ctx.guild.id, userid))
+			conn.commit()
+			await ctx.channel.send("User successfully whitelisted")
+		else:
+			await ctx.channel.send("That user is already whitelisted on this server.")
+			return
+	else:
+		await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")
+# Allow only specially whitelisted people to shut the bot down (in bot_shutdown)
 @bot.command()
 async def shutdown(ctx):
-	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot'''	
+	'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot.
+	In order to shutdown the bot, you must be given permission by the bot hoster.'''	
 
 	if not ctx.author.id in shutdown_admins: return
 
@@ -110,7 +142,8 @@ async def shutdown(ctx):
 
 @bot.command()
 async def restart(ctx):
-	'''Restart the process. Must be whitelisted to restart the bot.'''
+	'''Restart the process. Must be whitelisted to restart the bot.
+	In order to restart the bot, you must be given permission by the bot hoster.'''
 
 	if not ctx.author.id in shutdown_admins: return
 
@@ -132,9 +165,10 @@ class Channels(commands.Cog):
 
 	@commands.Command
 	async def prune(self, ctx, n:int=None):
-		'''Deletes the previous n number of messages (Up to 99)'''
+		'''Whitelist only.
+		Deletes the previous n number of messages (Up to 99).'''
 
-		if not is_whitelisted(ctx.author.id): return
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): return
 
 		if n > 99:
 			await ctx.channel.send("You can only prune up to 99 messages.")
@@ -154,11 +188,12 @@ class Channels(commands.Cog):
 
 	@commands.Command
 	async def setlinkonly(self, ctx, channel_id:int, link_only:str="true"):
-		'''Update the link-only status of a channel.
+		'''Whitelist only.
+		Update the link-only status of a channel.
 		Turt bot will delete all messages that are not links in link-only channels.
 		[link_only] needs to be either 1 (link_only) or 0 (not link_only). Sets to link-only by default if [link_only] not given.'''
 
-		if not is_whitelisted(ctx.author.id): return
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): return
 
 		link_only = link_only.lower()
 
@@ -216,12 +251,15 @@ class Channels(commands.Cog):
 	async def on_message_edit(self, before, after):
 		'''Enforces editing rules'''
 		
+		#Get the all link only channels in this server
+		cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (msg.guild.id,))
+		link_only_channels = cursor.fetchall()
 		#Determine if the message is posted in a link only channel
-		if after.channel.id in link_only_channels:
-			#Determine if the entire message is a link (no other content allowed)
+		if (msg.channel.id,) in link_only_channels:
+			#Determine if the entire message is a link (no other content allowed, except for trailing)
 			result = urlparse(after.content)
 			if not all([result.scheme, result.netloc, result.path]):
-				await after.delete() 
+				await after.delete()
 				#NOTE: This only works if the message is in the internal message cache
 				# If the bot starts up after the message is posted and the bot does not act on it since for any reason,
 				# then this will NOT work
@@ -233,7 +271,8 @@ class Voting(commands.Cog):
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-		'''Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
+		'''All users can call elections.
+		Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
 			Elections can only be called every 24 hours.
 			Multi-option (up to 10 options) elections can be created by supplying up to 10 extra arguments each in quotations. 
 			If no extra options are given, then it will be a yes/no election.
@@ -321,9 +360,10 @@ class Voting(commands.Cog):
 
 	@commands.Command
 	async def electionchannel(self, ctx, channelid:int):
-		'''Set the channel in which election messages will be sent'''
+		'''Whitelist only.
+		Set the channel in which election messages will be sent'''
 
-		if not is_whitelisted(ctx.author.id): return
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): return
 
 		if ctx.guild.get_channel(channelid) is not None: #Set the election channel (Must exist on this server)
 			cursor.execute("UPDATE servers SET ElectionChannelID = ? WHERE ServerID = ?", (channelid, ctx.guild.id))
@@ -532,8 +572,12 @@ class Voting(commands.Cog):
 
 ################ UTILITY FUNCTIONS #####################
 
-def is_whitelisted(user_id):
-	return user_id in bot_admins
+async def is_whitelisted(user_id, server_id):
+	cursor.execute("SELECT userid FROM whitelist WHERE serverid=? AND userid=?", (server_id, user_id))
+	user = cursor.fetchone() #If this is None, then the user is not whitelisted
+	server = await bot.fetch_guild(server_id)
+	if server is None: return False
+	return user is not None or server.owner_id == user_id #The server owner is not in the whitelisted table, but is always whitelisted
 
 async def delete_unwanted_election_reactions():
 	cursor.execute("SELECT ElectionChannelID FROM servers")

@@ -10,9 +10,6 @@ bot_user_id =
 # Custom string printed in the default help message
 bot_description = 'Moderation bot'
 
-# Tuple of user ids that can issue commands to the bot (a whitelist)
-bot_admins = ( user_id1, user_id2, user_id3, )
-
 # Tuple of user ids that can issue the shutdown command
 # NOTE: It is recommended that only the bot hoster have access to this command (and a few extremely trusted friends)
 shutdown_admins = ( user_id1, userid2, )

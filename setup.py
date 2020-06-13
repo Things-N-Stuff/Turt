@@ -3,6 +3,9 @@
 #import sqlite
 import sqlite3
 
+#Import utilities
+import os
+
 # Setup sqlite
 
 db_file = "sqlite_database"
@@ -20,10 +23,12 @@ def setup_sqlite_db(db):
 		#MultiOption stores whether or not the election is yes/no or if users pick between items
 		cursor.execute("CREATE TABLE servers(ServerID int DEFAULT -1, ElectionChannelID int DEFAULT -1)")
 		cursor.execute("CREATE TABLE linkonlychannels(channelid int DEFAULT -1, serverid int DEFAULT -1)")
+		cursor.execute("CREATE TABLE whitelist(serverid int DEFAULT -1, userid int DEFAULT -1)")
 		conn.commit()
 		print("Database file successfully created: " + db_file)
 	except Exception as e:
 		print(e)
+		if os.path.isfile(db_file): os.remove(db_file)
 	finally:
 		if conn:
 			conn.close()
