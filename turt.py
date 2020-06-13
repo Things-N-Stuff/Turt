@@ -58,7 +58,7 @@ numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numb
 						b'7\xef\xb8\x8f\xe2\x83\xa3',
 						b'8\xef\xb8\x8f\xe2\x83\xa3',
 						b'9\xef\xb8\x8f\xe2\x83\xa3',
-						b'\xf0\x9f\x94\x9f']
+						b'\xf0\x9f\x94\x9f'] #ten
 
 thumbsup = b'\xf0\x9f\x91\x8d'
 thumbsdown = b'\xf0\x9f\x91\x8e'
@@ -90,44 +90,6 @@ async def on_command_error(ctx, error):
 async def on_member_join(member):
 	determine_if_user_exists(member.id)
 
-# Allow only server owners to whitelist users for ONLY their server (for using commands like `prune` and `electionchannel`
-@bot.command()
-async def whitelist(ctx, userid:int, whitelisted:str):
-	'''Whitelist a specific user for this server (so they can use commands like `prune`).
-	If a command requires whitelisting, then it is specified in the command's help message.
-	Only server owners can whitelist users for their server.'''
-	whitelisted = whitelisted.lower() #Make is case insensitive
-
-	#Determine if the user is allowed to whitelist other users (if they are server owner)
-	if ctx.guild.owner.id != ctx.author.id: return #Dont do anything if not
-
-	cursor.execute("SELECT userid FROM whitelist WHERE serverid=?", (ctx.guild.id,))
-	whitelisted_users = cursor.fetchall()
-
-	#If attempting to remove whitelist on the user
-	if whitelisted == "false":
-		if (userid,) in whitelisted_users:
-			cursor.execute("DELETE FROM whitelist WHERE userid=? AND serverid=?", (userid, ctx.guild.id,))
-			conn.commit()
-			await ctx.channel.send("User successfully unwhitelisted")
-		else:
-			await ctx.channel.send("That user is not whitelisted on this server.")
-			return
-
-	#If attempting to whitelist the user
-	elif whitelisted == "true":
-		if(userid,) not in whitelisted_users:
-			cursor.execute("INSERT INTO whitelist VALUES(?,?)", (ctx.guild.id, userid))
-			conn.commit()
-			await ctx.channel.send("User successfully whitelisted")
-			#Now allow them to make elections without a timeout
-			cursor.execute("UPDATE users SET WhenCanVoteNext=0 WHERE userid=?", (userid,))
-			conn.commit()
-		else:
-			await ctx.channel.send("That user is already whitelisted on this server.")
-			return
-	else:
-		await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")
 # Allow only specially whitelisted people to shut the bot down (in bot_shutdown)
 @bot.command()
 async def shutdown(ctx):
@@ -657,6 +619,49 @@ class Voting(commands.Cog):
 			embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
 			await election_message.edit(embed=embed)
 
+class Permissions(commands.Cog):
+	def __init__ (self, bot):
+		self.bot = bot
+
+	# Allow only server owners to whitelist users for ONLY their server (for using commands like `prune` and `electionchannel`)
+	@commands.Command
+	async def whitelist(self, ctx, userid:int, whitelisted:str):
+		'''Whitelist a specific user for this server (so they can use commands like `prune`).
+		If a command requires whitelisting, then it is specified in the command's help message.
+		Only server owners can whitelist users for their server.'''
+		whitelisted = whitelisted.lower() #Make is case insensitive
+	
+		#Determine if the user is allowed to whitelist other users (if they are server owner)
+		if ctx.guild.owner.id != ctx.author.id: return #Dont do anything if not
+	
+		cursor.execute("SELECT userid FROM whitelist WHERE serverid=?", (ctx.guild.id,))
+		whitelisted_users = cursor.fetchall()
+	
+		#If attempting to remove whitelist on the user
+		if whitelisted == "false":
+			if (userid,) in whitelisted_users:
+				cursor.execute("DELETE FROM whitelist WHERE userid=? AND serverid=?", (userid, ctx.guild.id,))
+				conn.commit()
+				await ctx.channel.send("User successfully unwhitelisted")
+			else:
+				await ctx.channel.send("That user is not whitelisted on this server.")
+				return
+	
+		#If attempting to whitelist the user
+		elif whitelisted == "true":
+			if(userid,) not in whitelisted_users:
+				cursor.execute("INSERT INTO whitelist VALUES(?,?)", (ctx.guild.id, userid))
+				conn.commit()
+				await ctx.channel.send("User successfully whitelisted")
+				#Now allow them to make elections without a timeout
+				cursor.execute("UPDATE users SET WhenCanVoteNext=0 WHERE userid=?", (userid,))
+				conn.commit()
+			else:
+				await ctx.channel.send("That user is already whitelisted on this server.")
+				return
+		else:
+			await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")	
+
 ################ UTILITY FUNCTIONS #####################
 
 async def is_whitelisted(user_id, server_id):
@@ -739,6 +744,7 @@ except Exception as e:
 	exit(-2)
 
 # Add all the cogs
+#bot.add_cog(Permissions(bot))
 bot.add_cog(Channels(bot))
 bot.add_cog(Voting(bot))
 
