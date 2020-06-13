@@ -271,15 +271,63 @@ class Voting(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.check_votes.start()
+	
+	@commands.Command
+	async def allcancallvote(self, ctx, can_all_call_vote:str):
+		'''Whitelist only.
+		Configure whether or not all users will be able to call elections (NOT recommended for public servers). Does not effect whitelisted users.'''
+
+		#Determine if valid input given
+		can_all_call_vote = can_all_call_vote.lower() #Make is case insensitive
+
+		#Determine if the user is whitelisted on this server
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): return #Dont do anything if not
+
+		cursor.execute("SELECT UsersCanCallVote FROM servers WHERE serverid=?", (ctx.guild.id,))
+		result = cursor.fetchone()
+		if result is None: determine_if_server_exists(ctx.guild.id) #It doesnt, so make it
+
+		#If attempting to allow only whitelisted users create elections
+		if can_all_call_vote == "false":
+			if result[0] == 1:
+				cursor.execute("UPDATE servers SET UsersCanCallVote=? WHERE ServerID=?", (0, ctx.guild.id))
+				conn.commit()
+				await ctx.channel.send("Only whitelisted users can create elections now.")
+			else:
+				await ctx.channel.send("Only whitelisted users were able to create elections.")
+				return
+	
+		#If attempting to allow all users create elections
+		elif can_all_call_vote == "true":
+			if result[0] == 0:
+				cursor.execute("UPDATE servers SET UsersCanCallVote=? WHERE ServerID=?", (1, ctx.guild.id))
+				conn.commit()
+				await ctx.channel.send("All users can create elections now.")
+			else:
+				await ctx.channel.send("All users were able to create elections.")
+				return
+		else:
+			await ctx.channel.send("[can_all_call_vote] must either be 'true' or 'false'.")
 
 	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-		'''All users can call elections.
+		'''All users can call elections if the server owner has configured it that way.
 		Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
-			Elections can only be called every 24 hours.
+			Elections can only be called every 24 hours by general users. whitelisted users and the server owner can create elections without a timeout.
 			Multi-option (up to 10 options) elections can be created by supplying up to 10 extra arguments each in quotations. 
 			If no extra options are given, then it will be a yes/no election.
 			'''
+
+		# Determine if this server allows all users to call votes
+		if not is_whitelisted(ctx.author.id, ctx.guild.id): #If the user is whitelisted, then they will be able to anyway (No need to waste processing power)
+			cursor.execute("SELECT UsersCanCallVote FROM servers WHERE ServerID=?", (ctx.guild.id,))
+			result = cursor.fetchone()
+			if result is None: 
+				determine_if_server_exists()
+				await ctx.channel.send("The election channel has not been configured for this server.\n`./t electionchannel [channelID]` to setup election channel.")
+				return
+			else:
+				if result[0] == 0: return #This server does not allow everyone to call elections
 
 		# The election channel must be configured in order to create elections
 		cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -619,7 +667,7 @@ async def delete_unwanted_election_reactions():
 def determine_if_server_exists(server_id): #And add the server if not
 	cursor.execute("SELECT count(*) FROM servers WHERE ServerID = ?", (server_id,))
 	if cursor.fetchone()[0] == 0:
-		cursor.execute("INSERT INTO servers VALUES (?, ?)", (server_id, -1))
+		cursor.execute("INSERT INTO servers VALUES (?, ?, ?)", (server_id, -1, 1))
 		conn.commit()
 		print("\t\tAdded Server")
 

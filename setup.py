@@ -21,7 +21,7 @@ def setup_sqlite_db(db):
 		cursor.execute("CREATE TABLE users(UserID int DEFAULT -1, WhenCanVoteNext int DEFAULT 0)")
 		cursor.execute("CREATE TABLE elections(ElectionID int DEFAULT -1, MessageID int DEFAULT -1, ServerID int DEFAULT -1, UserToStart int DEFAULT -1, Name str DEFAULT election, Desc str DEFAULT description, EndTime int DEFAULT 0, MultiOption int DEFAULT 0, OptionOne str, OptionTwo str, OptionThree str, OptionFour str, OptionFive str, OptionSix str, OptionSeven str, OptionEight str, OptionNine str, OptionTen str)")
 		#MultiOption stores whether or not the election is yes/no or if users pick between items
-		cursor.execute("CREATE TABLE servers(ServerID int DEFAULT -1, ElectionChannelID int DEFAULT -1)")
+		cursor.execute("CREATE TABLE servers(ServerID int DEFAULT -1, ElectionChannelID int DEFAULT -1, UsersCanCallVote int DEFAULT 1)")
 		cursor.execute("CREATE TABLE linkonlychannels(channelid int DEFAULT -1, serverid int DEFAULT -1)")
 		cursor.execute("CREATE TABLE whitelist(serverid int DEFAULT -1, userid int DEFAULT -1)")
 		conn.commit()
