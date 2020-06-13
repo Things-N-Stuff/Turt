@@ -255,10 +255,10 @@ class Channels(commands.Cog):
 		'''Enforces editing rules'''
 		
 		#Get the all link only channels in this server
-		cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (msg.guild.id,))
+		cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (after.guild.id,))
 		link_only_channels = cursor.fetchall()
 		#Determine if the message is posted in a link only channel
-		if (msg.channel.id,) in link_only_channels:
+		if (after.channel.id,) in link_only_channels:
 			#Determine if the entire message is a link (no other content allowed, except for trailing)
 			result = urlparse(after.content)
 			if not all([result.scheme, result.netloc, result.path]):
@@ -310,6 +310,42 @@ class Voting(commands.Cog):
 			await ctx.channel.send("[can_all_call_vote] must either be 'true' or 'false'.")
 
 	@commands.Command
+	async def deleteelection(self, ctx, electionid:int):
+		'''Server owner only.
+		Delete an election from the server. Useful in case of trolling.'''
+
+		#Determine if the person is the server owner
+		if not ctx.author.id == ctx.guild.owner_id: return #owner only command
+		
+		#Determine if the election is even in this server (or if it even exists)
+		cursor.execute("SELECT ServerID, MessageID FROM elections WHERE ElectionID=?", (electionid,))
+		result = cursor.fetchone()
+		if result is None or result[0] != ctx.guild.id:
+			await ctx.channel.send("No election with that id exists on this server")
+			return
+
+		server_id = result[0]
+		message_id = result[1]
+
+		#Remove from database
+		cursor.execute("DELETE FROM elections WHERE ElectionID=?", (electionid,))
+		conn.commit()
+
+		#Delete the message
+		cursor.execute("SELECT ElectionChannelID FROM servers WHERE ServerID=?", (result[0],))
+		result = cursor.fetchone()
+		if result is None or result[0] == -1:
+			determine_if_server_exists(server_id)
+			await ctx.channel.send("Elections are not set up on this server (there cannot be any elections to delete!)")
+			return
+
+		channel = await bot.fetch_channel(result[0])
+		message = await channel.fetch_message(message_id)
+		await message.delete()
+
+		await ctx.channel.send("Election successfully removed")
+
+	@commands.Command
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
 		'''All users can call elections if the server owner has configured it that way.
 		Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
@@ -319,7 +355,7 @@ class Voting(commands.Cog):
 			'''
 
 		# Determine if this server allows all users to call votes
-		if not is_whitelisted(ctx.author.id, ctx.guild.id): #If the user is whitelisted, then they will be able to anyway (No need to waste processing power)
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): #If the user is whitelisted, then they will be able to anyway (No need to waste processing power)
 			cursor.execute("SELECT UsersCanCallVote FROM servers WHERE ServerID=?", (ctx.guild.id,))
 			result = cursor.fetchone()
 			if result is None: 
@@ -404,7 +440,7 @@ class Voting(commands.Cog):
 		cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 											(electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
 											options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8], options[9]))
-		if not is_whitelisted(ctx.author.id, ctx.guild.id): cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
+		if not await is_whitelisted(ctx.author.id, ctx.guild.id): cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
 		conn.commit()
 
 		await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
