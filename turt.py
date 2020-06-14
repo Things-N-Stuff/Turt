@@ -1,6 +1,7 @@
 # import modules
 from bot.bot import Bot
 import bot.constants as constants
+from bot.errors import NotInServerError
 
 # import discord.py api wrapper
 import discord
@@ -37,6 +38,7 @@ bot.load_extension("bot.cogs.elections")
 bot.load_extension("bot.cogs.channels")
 bot.load_extension("bot.cogs.bothosting")
 bot.load_extension("bot.cogs.database")
+bot.load_extension("bot.cogs.discipline")
 
 @bot.event
 async def on_ready():
@@ -53,7 +55,10 @@ async def on_ready():
 @bot.event
 async def on_command_error(ctx, error):
 	print(error)
-	await ctx.send_help(ctx.command)
+	if isinstance(error, commands.errors.NoPrivateMessage): return #Thats expected
+	else:
+		print(error)
+		await ctx.send_help(ctx.command)
 
 
 #Run the bot

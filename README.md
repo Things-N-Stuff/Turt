@@ -64,6 +64,20 @@ If you wish to contribute to this list, [open an issue](https://github.com/Thing
 	- `./t whitelist <user_id> <true/false>` will set whitelist status for a user for your server
 		- Whitelisted users will be allowed to call more potentially destructive commands (specified by `(whitelist only)`)
 		- Only server owners can set whitelist status for users within their server.
+	- `./t warn <user> <severity> <reason>` will warn a user on a server and add `<severity>` severity points to their account for this server.
+		- `<user>` should be an @mention
+		- Severity points are specific to each server
+		- It is recommended to be lenient with severity points, and repeated offences are recommended to result in increased severity points.
+			- It is also recommended for server owners to keep watch over his/her whitelisted users in case they are abusing this command (and warnings could be applied to them)
+		- The punishments for reaching each number of severity points is as follows:
+			- 10 severity points - Ban for 1 hour
+			- 20 severity points - Ban for 1 day
+			- 30 severity points - Ban for 1 week
+			- Every 10 severity points afterwards results in a ban for 30 days
+		- Only server owners can `./t warn` whitelisted users for their server (whitelisted users cannot warn each other).
+			- If a whitelisted user sees another whitelisted user abuse his/her power, then the witness should report the incident to the server owner so that he/she can take appropriate action.
+		- whitelisted users can warn anyone that is not whitelisted or server owner
+		- Users will only be banned by Turt bot if Turt bot has the `ban members` permission on a server and if Turt has a higher role on the role hierarchy than the user it is banning.
 
 - Bot hosting:
 	- The following commands can only be called by specific users, which are listed in the config file.
