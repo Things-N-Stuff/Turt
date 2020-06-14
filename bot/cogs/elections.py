@@ -6,12 +6,18 @@ import discord
 import sqlite3
 from sqlite3 import Error
 
+from bot.decorators import server_only
+
+# python util
+import time
+
 class Elections(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.check_votes.start()
 	
 	@commands.Command
+	@server_only()
 	async def allcancallvote(self, ctx, can_all_call_vote:str):
 		'''Whitelist only.
 		Configure whether or not all users will be able to call elections (NOT recommended for public servers). Does not effect whitelisted users.'''
@@ -49,6 +55,7 @@ class Elections(commands.Cog):
 			await ctx.channel.send("[can_all_call_vote] must either be 'true' or 'false'.")
 
 	@commands.Command
+	@server_only()
 	async def deleteelection(self, ctx, electionid:int):
 		'''Server owner only.
 		Delete an election from the server. Useful in case of trolling.'''
@@ -85,6 +92,7 @@ class Elections(commands.Cog):
 		await ctx.channel.send("Election successfully removed")
 
 	@commands.Command
+	@server_only()
 	async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
 		'''All users can call elections if the server owner has configured it that way.
 		Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
@@ -185,6 +193,7 @@ class Elections(commands.Cog):
 		await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
 
 	@commands.Command
+	@server_only()
 	async def electionchannel(self, ctx, channelid:int):
 		'''Whitelist only.
 		Set the channel in which election messages will be sent'''
@@ -199,6 +208,7 @@ class Elections(commands.Cog):
 			await ctx.channel.send("Channel with id '" + str(channelid) + "' does not exist on this server.")
 
 	@commands.Cog.listener()
+	@server_only()
 	async def on_raw_reaction_add(self, payload):
 		'''Delete all unwanted reactions'''
 

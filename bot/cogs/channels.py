@@ -2,11 +2,14 @@
 import discord
 from discord.ext import commands, tasks
 
+from bot.decorators import server_only
+
 class Channels(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
 	@commands.Command
+	@server_only()
 	async def prune(self, ctx, n:int=None):
 		'''Whitelist only.
 		Deletes the previous n number of messages (Up to 99).'''
@@ -24,6 +27,7 @@ class Channels(commands.Cog):
 		await ctx.channel.delete_messages(history)
 
 	@commands.Command
+	@server_only()
 	async def setlinkonly(self, ctx, channel_id:int, link_only:str="true"):
 		'''Whitelist only.
 		Update the link-only status of a channel.
@@ -71,8 +75,10 @@ class Channels(commands.Cog):
 
    	#Only allow links in certain channels (No extra content allowed)
 	@commands.Cog.listener()
+	@server_only()
 	async def on_message(self, msg):
 		'''Enforces messaging rules'''
+		if msg.guild is None: return # This is in a dm
 		
 		#Get the all link only channels in this server
 		self.bot.sql.cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (msg.guild.id,))
@@ -85,8 +91,10 @@ class Channels(commands.Cog):
 				await msg.delete()
 
 	@commands.Cog.listener()
+	@server_only()
 	async def on_message_edit(self, before, after):
 		'''Enforces editing rules'''
+		if msg.guild is None: return # This is in a dm
 		
 		#Get the all link only channels in this server
 		self.bot.sql.cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (after.guild.id,))

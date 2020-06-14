@@ -2,6 +2,8 @@
 import discord
 from discord.ext import commands, tasks
 
+from bot.decorators import server_only
+
 
 class Permissions(commands.Cog):
 	def __init__ (self, bot):
@@ -9,6 +11,7 @@ class Permissions(commands.Cog):
 
 	# Allow only server owners to whitelist users for ONLY their server (for using commands like `prune` and `electionchannel`)
 	@commands.Command
+	@server_only()
 	async def whitelist(self, ctx, userid:int, whitelisted:str):
 		'''Whitelist a specific user for this server (so they can use commands like `prune`).
 		If a command requires whitelisting, then it is specified in the command's help message.

@@ -1,0 +1,177 @@
+#import discord.py
+import discord
+from discord.ext import commands, tasks
+
+#python utility libraries
+from datetime import datetime, timedelta
+import time
+
+#checks
+from bot.decorators import server_only
+
+#config
+import config
+import math
+
+has_not_checked_bans = True
+
+class Discipline(commands.Cog):
+	def __init__(self, bot):
+		self.bot = bot
+
+	@commands.Command
+	@server_only()
+	async def warn(self, ctx, user:discord.User, severity:int, reason:str):
+		'''Whitelist only.
+		Warn a user for something they did and add <severity> severity points to their account for this server.
+		Whitelisted users cannot warn other whitelisted users, however the server owner can.
+		Punishments: (Rounds up to the top of the next hour)
+			10 severity points - banned for 1 hour
+			20 severity points - banned for 1 day
+			30 severity points - banned for 1 week
+			40 severity points - banned for 1 month (30 days)
+			Every 10 severity points afterwards will result in a 1 month ban (30 days)
+		Abusing this command is recommended to result in punishment by the server owner
+		Note that Turt bot cannot ban users with roles higher in the role hierarchy. If a user should be banned,
+		consult someone who is higher in the hierarchy.
+		It is recommended to turn on the `ban members` permission for Turt, or the discipline features will be less than effective.
+		'''
+
+		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return
+
+		
+		bans_in_hours = [1, 24, 168, 720] #Note that month bans are 30 days (they dont vary with month)
+		bans_strings = ["1 hour", "1 day", "1 week", "30 days"]
+
+		cursor = self.bot.sql.cursor
+		conn = self.bot.sql.conn
+
+		user_id = user.id
+
+		#Users cannot warn themselves
+		if user_id == ctx.author.id:
+			await ctx.channel.send("You cannot warn yourself.")
+			return
+			
+		#Determine if the person giving the warning is the server owner (they can warn anyone)
+		if user_id != ctx.guild.owner_id: # whitelisted people cannot warn other whitelisted people	
+			#Determine if the person being warned is whitelisted
+			cursor.execute("SELECT * FROM whitelist WHERE serverid=? AND userid=?", (ctx.guild.id, user_id))
+			result = cursor.fetchone()
+			if result is not None: #Then the person is whitelisted
+				await ctx.channel.send("Only the server owner can warn whitelisted users.")
+				return
+				#If the person giving the warning is not the server owner, then do nothing
+
+		# Determine whether or not the user exists in this server
+		if user is None:
+			await ctx.channel.send("That user does not exist on this server")
+			return
+
+		if user.id == config.bot_user_id:
+			await ctx.channel.send("You cannot warn me.")
+			return
+
+		if user.bot:
+			await ctx.channel.send("You cannot warn bots.")
+			return
+
+		# Determine the number of severity points they now have
+		cursor.execute("SELECT severitypoints FROM warnings WHERE userid=? AND serverid=?", (user_id, ctx.guild.id))
+		severity_points = cursor.fetchone()
+		if severity_points is None: #This person has not been warned before so add them
+			cursor.execute("INSERT INTO warnings VALUES (?,?,?,?)", (user_id, ctx.guild.id, 0, -1))
+			severity_points = 0
+		else:
+			severity_points = severity_points[0]
+
+		total_severity_points = severity_points + severity
+
+		# Determine their punishment (if they have reached a punishment)
+		# TODO: Make this message be an embed
+		punished = False
+		current_time_in_hours = int(math.ceil(time.time()/3600)) # Rounded up
+		end_hour = current_time_in_hours
+		ban_level = 0
+		for points in reversed(range(4)): #Apply the appropriate number of hours to be banned
+			if total_severity_points >= points*10 and severity_points < points*10:
+				index = int((points-1)/10)
+				end_hour += bans_in_hours[index]
+				punished = True
+				ban_level = index
+
+		if punished:
+			# Update the database
+			self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (end_hour, user_id, ctx.guild.id))
+			#self.bot.sql.cursor.commit()
+	
+			# Ban the user if turt can
+
+
+			server = await self.bot.fetch_guild(ctx.guild.id)
+			bot_user = await server.fetch_member(config.bot_user_id)
+			member = await server.fetch_member(user_id)
+			if bot_user.top_role.position > member.top_role.position:
+				ctx.guild.ban(user, reason=reason, delete_message_days=0)
+	
+				# Notify via dm and in the channel (Use different point of view for each)
+				await ctx.channel.send(f"{user.mention} has been banned from the server for {bans_strings[ban_level]}.\n" +
+										f"{user.name} now has {total_severity_points} severity points on this sever.")
+				if user.dm_channel is None:
+					await user.create_dm()
+				await user.dm_channel.send(f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}.\n" +
+										f"You now have {total_severity_points} severity points in '{ctx.guild.name}.")
+			else:
+				await ctx.channel.send(f"Turt bot is unable to ban {user.mention} due to insufficient role status or" +
+										f" Turt is unable to ban users on this server.\n {user.name} has accumulated " +
+										f"{total_severity_points} severity points, so it is recommended that {user.name} be banned " +
+										f"for {bans_strings[ban_level]}.")
+
+		else:
+			await ctx.channel.send(f"{user.mention} has been warned by {ctx.author.mention} because: {reason}.\n" +
+										f"{user.name} now has {total_severity_points} severity points on this server.")
+			if user.dm_channel is None:
+				await user.create_dm()
+			await user.dm_channel.send(f"You have been warned by {ctx.author.mention} in '{ctx.guild.name}' because: {reason}.\n" +
+										f"You now have {total_severity_points} severity points in '{ctx.guild.name}'")
+
+	@tasks.loop(seconds=60)
+	async def checkbans(self):
+		await self.bot.wait_until_ready()
+
+		if datetime.now().minute == 0 and has_not_checked_bans:
+
+			self.bot.sql.cursor.execute("SELECT * FROM warnings")
+	
+			warnings = self.bot.sql.cursor.fetchall()
+			
+	
+			current_time_in_hours = int(time.time()/3600)
+	
+			user_id_index = 0
+			server_id_index = 1
+			severity_points_index = 2
+			end_time_index = 3
+			for warning in warnings:
+				
+				end_time = warning[end_time_index]
+				if end_time == -1: # This person is not banned
+					continue
+	
+				user_id = warning[user_id_index]
+				server_id = warning[server_id_index]
+				if current_time_in_hours - timedelta(end_time) < 0: #Their ban has been lifted because they have served their time
+					#unban
+					user = await self.bot.fetch_user(user_id)
+					server = await self.bot.fetch_guild(server_id)
+					server.unban(user, reason=f"You have served your temporary ban at {server.name}. You currently have {warning[severity_points_index]} severity points in {server.name}.")
+					
+					#Update EndTime to -1 (Meaning they arent banned now)
+					self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (-1, user_id, server_id))
+					self.bot.sql.conn.commit()
+
+			has_not_checked_bans = False
+					
+def setup(bot: commands.Bot):
+	'''Setup the discipline cog'''
+	bot.add_cog(Discipline(bot))

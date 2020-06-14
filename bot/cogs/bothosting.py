@@ -13,32 +13,37 @@ class BotHosting(commands.Cog):
 		self.bot = bot
 
 	# Allow only specially whitelisted people to shut the bot down (in bot_shutdown)
-	@commands.Command
-	async def shutdown(ctx):
+	@commands.command()
+	async def shutdown(self, ctx):
 		'''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot.
 		In order to shutdown the bot, you must be given permission by the bot hoster.'''	
+		await self.bot.wait_until_ready()
 	
 		if not ctx.author.id in shutdown_admins: return
 	
 		await ctx.channel.send("Shutting down...")
-		conn.commit() # Ensure that everything was saved
 		try:
-			await bot.close()
+			self.bot.sql.conn.commit()
+			self.bot.sql.disconnect()
+			await self.bot.close()
 		except:
 			sys.exit(1)	
 
-	@commands.Command
-	async def restart(ctx):
+	@commands.command()
+	async def restart(self, ctx):
 		'''Restart the process. Must be whitelisted to restart the bot.
 		In order to restart the bot, you must be given permission by the bot hoster.'''
+		await self.bot.wait_until_ready()
 	
 		if not ctx.author.id in shutdown_admins: return
 	
 		await ctx.channel.send("Restarting...")
 		try:
+			self.bot.sql.conn.commit()
+			self.bot.sql.disconnect()
 			# spawn process
 			os.system("python3.6 turt.py")
-			await bot.close()
+			await self.bot.close()
 		except:
 			# spawn process
 			os.system("python3.6 turt.py")

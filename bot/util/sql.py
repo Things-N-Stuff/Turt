@@ -26,8 +26,8 @@ class SQLConnector():
 		return True
 
 	def disconnect(self):
-		conn.commit() #Make sure everything is saved
-		conn.close()
+		self.conn.commit() #Make sure everything is saved
+		self.conn.close()
 
 
 	def determine_if_server_exists(self, server_id): #And add the server if not

@@ -34,12 +34,3 @@ class Bot(commands.Bot):
 		if not self.sql.connect():
 			sys.exit(-3)
 
-	def close(self):
-		# Overriding this
-		if sql:
-			sql.disconnect()
-
-		bot.close()
-
-	#def get_cog(self, cog_name:str) -> commands.Cog:
-		#return super().get_cog("cogs." + cog_name)
