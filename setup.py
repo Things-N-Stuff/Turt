@@ -24,11 +24,11 @@ def setup_sqlite_db(db):
 		cursor.execute("CREATE TABLE servers(ServerID int DEFAULT -1, ElectionChannelID int DEFAULT -1, UsersCanCallVote int DEFAULT 1)")
 		cursor.execute("CREATE TABLE linkonlychannels(channelid int DEFAULT -1, serverid int DEFAULT -1)")
 		cursor.execute("CREATE TABLE whitelist(serverid int DEFAULT -1, userid int DEFAULT -1)")
+		cursor.execute("CREATE TABLE warnings(userid int DEFAULT -1, serverid int DEFAULT -1, severitypoints int DEFAULT 0, EndTime int DEFAULT -1)")
 		conn.commit()
 		print("Database file successfully created: " + db_file)
 	except Exception as e:
 		print(e)
-		if os.path.isfile(db_file): os.remove(db_file)
 	finally:
 		if conn:
 			conn.close()
