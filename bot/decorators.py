@@ -6,9 +6,7 @@ from discord.ext import commands
 from typing import Callable
 
 # checks
-from bot.checks import in_server
-from bot.checks import is_whitelisted
-from bot.checks import is_server_owner
+from bot.checks import in_server, is_whitelisted, is_server_owner, is_bot_hoster
 
 # We currently have none
 
@@ -28,4 +26,10 @@ def server_owner_only() -> Callable:
 	def predicate(ctx:commands.Context):
 		return is_server_owner(ctx)
 	
+	return commands.check(predicate)
+
+def bot_hoster_only() -> Callable:
+	def predicate(ctx:commands.Context):
+		return is_bot_hoster(ctx)
+
 	return commands.check(predicate)

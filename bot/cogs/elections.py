@@ -6,8 +6,7 @@ import discord
 import sqlite3
 from sqlite3 import Error
 
-from bot.decorators import server_only
-from bot.decorators import whiteliste_only
+from bot.decorators import server_only, whitelist_only, server_owner_only
 
 # python util
 import time
