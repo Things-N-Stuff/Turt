@@ -2,7 +2,7 @@
 import discord
 from discord.ext import commands, tasks
 
-from bot.decorators import server_only
+from bot.decorators import server_only, server_owner_only
 
 
 class Permissions(commands.Cog):
@@ -12,14 +12,12 @@ class Permissions(commands.Cog):
 	# Allow only server owners to whitelist users for ONLY their server (for using commands like `prune` and `electionchannel`)
 	@commands.Command
 	@server_only()
+	@server_owner_only()
 	async def whitelist(self, ctx, userid:int, whitelisted:str):
 		'''Whitelist a specific user for this server (so they can use commands like `prune`).
 		If a command requires whitelisting, then it is specified in the command's help message.
 		Only server owners can whitelist users for their server.'''
 		whitelisted = whitelisted.lower() #Make is case insensitive
-	
-		#Determine if the user is allowed to whitelist other users (if they are server owner)
-		if ctx.guild.owner.id != ctx.author.id: return #Dont do anything if not
 	
 		self.bot.sql.cursor.execute("SELECT userid FROM whitelist WHERE serverid=?", (ctx.guild.id,))
 		whitelisted_users = self.bot.sql.cursor.fetchall()

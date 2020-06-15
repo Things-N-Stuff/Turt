@@ -16,8 +16,6 @@ class Channels(commands.Cog):
 		'''Whitelist only.
 		Deletes the previous n number of messages (Up to 99).'''
 
-		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return
-
 		if n > 99:
 			await ctx.channel.send("You can only prune up to 99 messages.")
 			return
@@ -30,13 +28,12 @@ class Channels(commands.Cog):
 
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def setlinkonly(self, ctx, channel_id:int, link_only:str="true"):
 		'''Whitelist only.
 		Update the link-only status of a channel.
 		Turt bot will delete all messages that are not links in link-only channels.
 		[link_only] needs to be either 1 (link_only) or 0 (not link_only). Sets to link-only by default if [link_only] not given.'''
-
-		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return
 
 		link_only = link_only.lower()
 

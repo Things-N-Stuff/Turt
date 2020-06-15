@@ -27,9 +27,6 @@ class Elections(commands.Cog):
 		#Determine if valid input given
 		can_all_call_vote = can_all_call_vote.lower() #Make is case insensitive
 
-		#Determine if the user is whitelisted on this server
-		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return #Dont do anything if not
-
 		self.bot.sql.cursor.execute("SELECT UsersCanCallVote FROM servers WHERE serverid=?", (ctx.guild.id,))
 		result = self.bot.sql.cursor.fetchone()
 		if result is None: determine_if_server_exists(ctx.guild.id) #It doesnt, so make it
@@ -58,14 +55,11 @@ class Elections(commands.Cog):
 
 	@commands.Command
 	@server_only()
-	@whitelist_only()
+	@server_owner_only()
 	async def deleteelection(self, ctx, electionid:int):
 		'''Server owner only.
 		Delete an election from the server. Useful in case of trolling.'''
 
-		#Determine if the person is the server owner
-		if not ctx.author.id == ctx.guild.owner_id: return #owner only command
-		
 		#Determine if the election is even in this server (or if it even exists)
 		self.bot.sql.cursor.execute("SELECT ServerID, MessageID FROM elections WHERE ElectionID=?", (electionid,))
 		result = self.bot.sql.cursor.fetchone()
@@ -201,8 +195,6 @@ class Elections(commands.Cog):
 	async def electionchannel(self, ctx, channelid:int):
 		'''Whitelist only.
 		Set the channel in which election messages will be sent'''
-
-		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return
 
 		if ctx.guild.get_channel(channelid) is not None: #Set the election channel (Must exist on this server)
 			self.bot.sql.cursor.execute("UPDATE servers SET ElectionChannelID = ? WHERE ServerID = ?", (channelid, ctx.guild.id))

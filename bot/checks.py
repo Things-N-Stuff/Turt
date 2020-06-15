@@ -11,3 +11,6 @@ def in_server(ctx:commands.Context) -> bool:
 
 def is_whitelisted(ctx:commands.Context) -> bool:
 	return constants.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id)
+
+def is_server_owner(ctx:command.Context) -> bool:
+	return ctx.author.id == ctx.guild.id

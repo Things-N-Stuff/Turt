@@ -42,9 +42,6 @@ class Discipline(commands.Cog):
 		It is recommended to turn on the `ban members` permission for Turt, or the discipline features will be less than effective.
 		'''
 
-		if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): return
-
-		
 		bans_in_hours = [1, 24, 168, 720] #Note that month bans are 30 days (they dont vary with month)
 		bans_strings = ["1 hour", "1 day", "1 week", "30 days"]
 
