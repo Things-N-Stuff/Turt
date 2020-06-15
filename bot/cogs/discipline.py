@@ -5,6 +5,7 @@ from discord.ext import commands, tasks
 #python utility libraries
 from datetime import datetime, timedelta
 import time
+import traceback
 
 #checks
 from bot.decorators import server_only
@@ -13,11 +14,13 @@ from bot.decorators import server_only
 import config
 import math
 
-has_not_checked_bans = True
-
 class Discipline(commands.Cog):
+
+	has_not_checked_bans = True
+
 	def __init__(self, bot):
 		self.bot = bot
+		self.check_bans.start()
 
 	@commands.Command
 	@server_only()
@@ -101,9 +104,6 @@ class Discipline(commands.Cog):
 				ban_level = index
 
 		if punished:
-			# Update the database
-			self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (end_hour, user_id, ctx.guild.id))
-			#self.bot.sql.cursor.commit()
 	
 			# Ban the user if turt can
 
@@ -111,14 +111,15 @@ class Discipline(commands.Cog):
 			server = await self.bot.fetch_guild(ctx.guild.id)
 			bot_user = await server.fetch_member(config.bot_user_id)
 			member = await server.fetch_member(user_id)
-			if bot_user.top_role.position > member.top_role.position:
-				ctx.guild.ban(user, reason=reason, delete_message_days=0)
+			if bot_user.guild_permissions.ban_members and bot_user.top_role.position > member.top_role.position:
+				await ctx.guild.ban(user, reason=reason, delete_message_days=0)
 	
 				# Notify via dm and in the channel (Use different point of view for each)
 				ban_embed = discord.Embed()
 				ban_embed.color = discord.Colour.red()
-				ban_embed.set_author(name=f"Last warned by {ctx.author.displayname}", icon_url=ctx.author.avatar_url)
-				ban_embed.title = f"{user.mention} has been banned from the server for {bans_strings[ban_level]}."
+				ban_embed.set_author(name=f"Last warned by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
+				ban_embed.set_thumbnail(url=member.avatar_url)
+				ban_embed.title = f"{user.display_name} has been banned from the server for {bans_strings[ban_level]}."
 				ban_embed.description = f"The last straw:\n{reason}"
 				ban_embed.add_field(name="Increased Severity Points", value=severity, inline=True)
 				ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
@@ -133,6 +134,11 @@ class Discipline(commands.Cog):
 
 				await user.dm_channel.send(embed=ban_embed)
 
+				self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (end_hour, user_id, ctx.guild.id))
+				self.bot.sql.cursor.execute("UPDATE warnings SET severitypoints=? WHERE userid=? AND serverid=?", (total_severity_points, user_id, ctx.guild.id))
+				self.bot.sql.conn.commit()
+
+
 			else:
 				await ctx.channel.send(f"Turt bot is unable to ban {user.mention} due to insufficient role status or" +
 										f" Turt is unable to ban users on this server.\n {user.name} has accumulated " +
@@ -142,7 +148,7 @@ class Discipline(commands.Cog):
 		else:
 			ban_embed = discord.Embed()
 			ban_embed.color = discord.Colour.orange()
-			ban_embed.set_author(name=f"Warned by {ctx.author.displayname}", icon_uril=ctx.author.avatar_url)
+			ban_embed.set_author(name=f"Warned by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
 			ban_embed.title = f"{user.mention} has been warned."
 			ban_embed.description = f"Reason: {reason}"
 			ban_embed.add_field(name="Severity Points Given", value=severity, inline=True)
@@ -164,10 +170,10 @@ class Discipline(commands.Cog):
 			await user.dm_channel.send(embed=ban_embed)
 
 	@tasks.loop(seconds=60)
-	async def checkbans(self):
+	async def check_bans(self):
 		await self.bot.wait_until_ready()
 
-		if datetime.now().minute == 0 and has_not_checked_bans:
+		if datetime.now().minute == 0 or self.has_not_checked_bans:
 
 			self.bot.sql.cursor.execute("SELECT * FROM warnings")
 	
@@ -188,35 +194,41 @@ class Discipline(commands.Cog):
 	
 				user_id = warning[user_id_index]
 				server_id = warning[server_id_index]
-				if current_time_in_hours - timedelta(end_time) < 0: #Their ban has been lifted because they have served their time
+				if current_time_in_hours - end_time > 0: #Their ban has been lifted because they have served their time
 					#unban
 					user = await self.bot.fetch_user(user_id)
 					server = await self.bot.fetch_guild(server_id)
-					server.unban(user, reason=f"You have served your temporary ban at {server.name}. You currently have {warning[severity_points_index]} severity points in {server.name}.")
+					if user is None or server is None: 
+						return
+					print("Unbanning")
+					await server.unban(user, reason=f"You have served your temporary ban at {server.name}. You currently have {warning[severity_points_index]} severity points in {server.name}.")
 					
+					print("Updating the database")
 					#Update EndTime to -1 (Meaning they arent banned now)
 					self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (-1, user_id, server_id))
 					self.bot.sql.conn.commit()
 
+					print("Making embed")
 					#Notify via dms
 					unban_embed = discord.Embed()
 					unban_embed.color = discord.Colour.dark_green()
 					unban_embed.title = f"You have served your temporary ban in {server.name}."
-					ban_embed.add_field(name="Total Severity Points in {server.name}", value=total_severity_points, inline=False)
-					ban_embed.add_field(name="Ban Punishments:", 
+					unban_embed.add_field(name=f"Total Severity Points in {server.name}", value=warning[severity_points_index], inline=False)
+					unban_embed.add_field(name="Ban Punishments:", 
 								value="10 severity points: 1 Hour\n" + 
 										"20 severity points: 1 Day\n" +
 										"30 severity points: 1 week\n" + 
 										"Every 10 severity points afterwards: 1 Month (30 days)",
 								inline=False)
 
+					print("Notifying")
 					if user.dm_channel is None:
 						await user.create_dm()
 
-					await user.dm_channel.send(embed=ban_embed)
+					await user.dm_channel.send(embed=unban_embed)
 
 
-			has_not_checked_bans = False
+			self.has_not_checked_bans = False
 					
 def setup(bot: commands.Bot):
 	'''Setup the discipline cog'''
