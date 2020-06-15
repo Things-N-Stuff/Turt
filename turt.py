@@ -11,6 +11,8 @@ import os
 import sys
 from datetime import datetime
 
+from bot import constants
+
 # Import the configuration
 try:
 	from config import bot_token, bot_prefix, bot_description, shutdown_admins, bot_user_id
@@ -26,39 +28,38 @@ if not os.path.isfile(constants.db_file):
 
 
 # Turt instance
-bot = Bot(command_prefix=bot_prefix, 
+constants.bot = Bot(command_prefix=bot_prefix, 
 	description=bot_description,
 	status=discord.Status.idle,
 	activity=discord.Game(name='Starting...'))
 
 # Setup the Cogs
-bot.load_extension("bot.cogs.permissions")
-bot.load_extension("bot.cogs.elections")
-bot.load_extension("bot.cogs.channels")
-bot.load_extension("bot.cogs.bothosting")
-bot.load_extension("bot.cogs.database")
-bot.load_extension("bot.cogs.discipline")
+constants.bot.load_extension("bot.cogs.permissions")
+constants.bot.load_extension("bot.cogs.elections")
+constants.bot.load_extension("bot.cogs.channels")
+constants.bot.load_extension("bot.cogs.bothosting")
+constants.bot.load_extension("bot.cogs.database")
+constants.bot.load_extension("bot.cogs.discipline")
 
-@bot.event
+@constants.bot.event
 async def on_ready():
 	print("Discord.py " + discord.__version__)
-	print(f"{bot.user.name}: {bot.user.id}")
+	print(f"{constants.bot.user.name}: {constants.bot.user.id}")
 	print("Bot started at " + datetime.now().strftime("%H:%M:%S"))
-	await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='Moderating'))
+	await constants.bot.change_presence(status=discord.Status.online, activity=discord.Game(name='Moderating'))
 	print("Putting all users in database...")
-	bot.sql.setup_database_with_all_users(bot)
+	constants.bot.sql.setup_database_with_all_users(constants.bot)
 	print("Deleting unwanted reactions from elections...")
-	await (bot.get_cog("Elections")).delete_unwanted_election_reactions()
-	#print("Unbanning those who have served their time...")
-	#await (bot.get_cog("Discipline")).checkbans()
+	await (constants.bot.get_cog("Elections")).delete_unwanted_election_reactions()
 	print("Ready!")
 
-@bot.event
+@constants.bot.event
 async def on_command_error(ctx, error):
+	if isinstance(error, commands.errors.CheckFailure): return #Thats expected
 	if isinstance(error, commands.errors.NoPrivateMessage): return #Thats expected
 	else:
 		print(error)
 		await ctx.send_help(ctx.command)
 
 #Run the bot
-bot.run(bot_token)
+constants.bot.run(bot_token)

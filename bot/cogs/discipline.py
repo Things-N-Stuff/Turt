@@ -9,6 +9,7 @@ import traceback
 
 #checks
 from bot.decorators import server_only
+from bot.decorators import whitelist_only
 
 #config
 import config
@@ -24,6 +25,7 @@ class Discipline(commands.Cog):
 
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def warn(self, ctx, user:discord.User, severity:int, reason:str):
 		'''Whitelist only.
 		Warn a user for something they did and add <severity> severity points to their account for this server.

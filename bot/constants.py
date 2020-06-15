@@ -16,6 +16,8 @@ numbers_emoji_bytes = [b'1\xef\xb8\x8f\xe2\x83\xa3', #Look at the beginning numb
 						b'9\xef\xb8\x8f\xe2\x83\xa3',
 						b'\xf0\x9f\x94\x9f'] #ten
 
+bot = None
+
 thumbsup = b'\xf0\x9f\x91\x8d'
 thumbsdown = b'\xf0\x9f\x91\x8e'
 

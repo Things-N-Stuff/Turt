@@ -7,6 +7,7 @@ import sqlite3
 from sqlite3 import Error
 
 from bot.decorators import server_only
+from bot.decorators import whiteliste_only
 
 # python util
 import time
@@ -18,6 +19,7 @@ class Elections(commands.Cog):
 	
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def allcancallvote(self, ctx, can_all_call_vote:str):
 		'''Whitelist only.
 		Configure whether or not all users will be able to call elections (NOT recommended for public servers). Does not effect whitelisted users.'''
@@ -56,6 +58,7 @@ class Elections(commands.Cog):
 
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def deleteelection(self, ctx, electionid:int):
 		'''Server owner only.
 		Delete an election from the server. Useful in case of trolling.'''
@@ -194,6 +197,7 @@ class Elections(commands.Cog):
 
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def electionchannel(self, ctx, channelid:int):
 		'''Whitelist only.
 		Set the channel in which election messages will be sent'''

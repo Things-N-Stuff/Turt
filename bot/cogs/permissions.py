@@ -49,10 +49,10 @@ class Permissions(commands.Cog):
 		else:
 			await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")
 
-	async def is_whitelisted(self, user_id, server_id):
+	def is_whitelisted(self, user_id, server_id) -> bool:
 		self.bot.sql.cursor.execute("SELECT userid FROM whitelist WHERE serverid=? AND userid=?", (server_id, user_id))
 		user = self.bot.sql.cursor.fetchone() #If this is None, then the user is not whitelisted
-		server = await self.bot.fetch_guild(server_id)
+		server = self.bot.get_guild(server_id)
 		if server is None: return False
 		return user is not None or server.owner_id == user_id #The server owner is not in the whitelisted table, but is always whitelisted
 	

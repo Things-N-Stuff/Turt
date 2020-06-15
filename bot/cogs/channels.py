@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands, tasks
 
 from bot.decorators import server_only
+from bot.decorators import whitelist_only
 
 class Channels(commands.Cog):
 	def __init__(self, bot):
@@ -10,6 +11,7 @@ class Channels(commands.Cog):
 
 	@commands.Command
 	@server_only()
+	@whitelist_only()
 	async def prune(self, ctx, n:int=None):
 		'''Whitelist only.
 		Deletes the previous n number of messages (Up to 99).'''
