@@ -108,7 +108,6 @@ class Discipline(commands.Cog):
 				ban_level = index
 
 		if punished:
-			# Ban the user if turt can
 
 
 			server = await self.bot.fetch_guild(ctx.guild.id)
@@ -182,8 +181,6 @@ class Discipline(commands.Cog):
 			self.bot.sql.cursor.execute("SELECT * FROM warnings")
 	
 			warnings = self.bot.sql.cursor.fetchall()
-			print(len(warnings))
-			
 	
 			current_time_in_hours = int(time.time()/3600)
 	

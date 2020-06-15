@@ -94,7 +94,7 @@ class Channels(commands.Cog):
 	@server_only()
 	async def on_message_edit(self, before, after):
 		'''Enforces editing rules'''
-		if msg.guild is None: return # This is in a dm
+		if after.guild is None: return # This is in a dm
 		
 		#Get the all link only channels in this server
 		self.bot.sql.cursor.execute("SELECT channelid FROM linkonlychannels WHERE serverid=?", (after.guild.id,))
