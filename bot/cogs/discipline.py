@@ -84,11 +84,15 @@ class Discipline(commands.Cog):
 		severity_points = cursor.fetchone()
 		if severity_points is None: #This person has not been warned before so add them
 			cursor.execute("INSERT INTO warnings VALUES (?,?,?,?)", (user_id, ctx.guild.id, 0, -1))
+			conn.commit()
 			severity_points = 0
 		else:
 			severity_points = severity_points[0]
 
 		total_severity_points = severity_points + severity
+
+		cursor.execute("UPDATE warnings SET severitypoints=? WHERE userid=? AND serverid=?", (total_severity_points, user_id, ctx.guild.id))
+		conn.commit()
 
 		# Determine their punishment (if they have reached a punishment)
 		# TODO: Make this message be an embed
@@ -104,7 +108,6 @@ class Discipline(commands.Cog):
 				ban_level = index
 
 		if punished:
-	
 			# Ban the user if turt can
 
 
@@ -130,7 +133,8 @@ class Discipline(commands.Cog):
 				if user.dm_channel is None:
 					await user.create_dm()
 
-				ban_embed.title = f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}"
+				ban_embed.title = f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}."
+				ban_embed.set_thumbnail(url=None)
 
 				await user.dm_channel.send(embed=ban_embed)
 
@@ -178,6 +182,7 @@ class Discipline(commands.Cog):
 			self.bot.sql.cursor.execute("SELECT * FROM warnings")
 	
 			warnings = self.bot.sql.cursor.fetchall()
+			print(len(warnings))
 			
 	
 			current_time_in_hours = int(time.time()/3600)
@@ -200,15 +205,12 @@ class Discipline(commands.Cog):
 					server = await self.bot.fetch_guild(server_id)
 					if user is None or server is None: 
 						return
-					print("Unbanning")
 					await server.unban(user, reason=f"You have served your temporary ban at {server.name}. You currently have {warning[severity_points_index]} severity points in {server.name}.")
 					
-					print("Updating the database")
 					#Update EndTime to -1 (Meaning they arent banned now)
 					self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (-1, user_id, server_id))
 					self.bot.sql.conn.commit()
 
-					print("Making embed")
 					#Notify via dms
 					unban_embed = discord.Embed()
 					unban_embed.color = discord.Colour.dark_green()
@@ -221,15 +223,12 @@ class Discipline(commands.Cog):
 										"Every 10 severity points afterwards: 1 Month (30 days)",
 								inline=False)
 
-					print("Notifying")
 					if user.dm_channel is None:
 						await user.create_dm()
 
 					await user.dm_channel.send(embed=unban_embed)
-
-
 			self.has_not_checked_bans = False
-					
+
 def setup(bot: commands.Bot):
 	'''Setup the discipline cog'''
 	bot.add_cog(Discipline(bot))
