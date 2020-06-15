@@ -115,12 +115,24 @@ class Discipline(commands.Cog):
 				ctx.guild.ban(user, reason=reason, delete_message_days=0)
 	
 				# Notify via dm and in the channel (Use different point of view for each)
-				await ctx.channel.send(f"{user.mention} has been banned from the server for {bans_strings[ban_level]}.\n" +
-										f"{user.name} now has {total_severity_points} severity points on this sever.")
+				ban_embed = discord.Embed()
+				ban_embed.color = discord.Colour.red()
+				ban_embed.set_author(name=f"Last warned by {ctx.author.displayname}", icon_url=ctx.author.avatar_url)
+				ban_embed.title = f"{user.mention} has been banned from the server for {bans_strings[ban_level]}."
+				ban_embed.description = f"The last straw:\n{reason}"
+				ban_embed.add_field(name="Increased Severity Points", value=severity, inline=True)
+				ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
+				ban_embed.add_field(name="Ban Duration:", value=bans_strings[ban_level], inline=False)
+
+				await ctx.channel.send(embed=ban_embed)
+
 				if user.dm_channel is None:
 					await user.create_dm()
-				await user.dm_channel.send(f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}.\n" +
-										f"You now have {total_severity_points} severity points in '{ctx.guild.name}.")
+
+				ban_embed.title = f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}"
+
+				await user.dm_channel.send(embed=ban_embed)
+
 			else:
 				await ctx.channel.send(f"Turt bot is unable to ban {user.mention} due to insufficient role status or" +
 										f" Turt is unable to ban users on this server.\n {user.name} has accumulated " +
@@ -128,12 +140,28 @@ class Discipline(commands.Cog):
 										f"for {bans_strings[ban_level]}.")
 
 		else:
-			await ctx.channel.send(f"{user.mention} has been warned by {ctx.author.mention} because: {reason}.\n" +
-										f"{user.name} now has {total_severity_points} severity points on this server.")
+			ban_embed = discord.Embed()
+			ban_embed.color = discord.Colour.orange()
+			ban_embed.set_author(name=f"Warned by {ctx.author.displayname}", icon_uril=ctx.author.avatar_url)
+			ban_embed.title = f"{user.mention} has been warned."
+			ban_embed.description = f"Reason: {reason}"
+			ban_embed.add_field(name="Severity Points Given", value=severity, inline=True)
+			ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
+			ban_embed.add_field(name="Ban Punishments:", 
+								value="10 severity points: 1 Hour\n" + 
+										"20 severity points: 1 Day\n" +
+										"30 severity points: 1 week\n" + 
+										"Every 10 severity points afterwards: 1 Month (30 days)",
+								inline=False)
+
+			await ctx.channel.send(embed=ban_embed)
+
 			if user.dm_channel is None:
 				await user.create_dm()
-			await user.dm_channel.send(f"You have been warned by {ctx.author.mention} in '{ctx.guild.name}' because: {reason}.\n" +
-										f"You now have {total_severity_points} severity points in '{ctx.guild.name}'")
+
+			ban_embed.title = f"You have been warned in {ctx.guild.name}."
+
+			await user.dm_channel.send(embed=ban_embed)
 
 	@tasks.loop(seconds=60)
 	async def checkbans(self):
@@ -169,6 +197,24 @@ class Discipline(commands.Cog):
 					#Update EndTime to -1 (Meaning they arent banned now)
 					self.bot.sql.cursor.execute("UPDATE warnings SET EndTime=? WHERE userid=? AND serverid=?", (-1, user_id, server_id))
 					self.bot.sql.conn.commit()
+
+					#Notify via dms
+					unban_embed = discord.Embed()
+					unban_embed.color = discord.Colour.dark_green()
+					unban_embed.title = f"You have served your temporary ban in {server.name}."
+					ban_embed.add_field(name="Total Severity Points in {server.name}", value=total_severity_points, inline=False)
+					ban_embed.add_field(name="Ban Punishments:", 
+								value="10 severity points: 1 Hour\n" + 
+										"20 severity points: 1 Day\n" +
+										"30 severity points: 1 week\n" + 
+										"Every 10 severity points afterwards: 1 Month (30 days)",
+								inline=False)
+
+					if user.dm_channel is None:
+						await user.create_dm()
+
+					await user.dm_channel.send(embed=ban_embed)
+
 
 			has_not_checked_bans = False
 					
