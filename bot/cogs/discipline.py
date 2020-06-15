@@ -133,7 +133,7 @@ class Discipline(commands.Cog):
 					await user.create_dm()
 
 				ban_embed.title = f"You have been banned from {ctx.guild.name} for {bans_strings[ban_level]}."
-				ban_embed.set_thumbnail(url=None)
+				ban_embed.set_thumbnail(url=discord.Embed.Empty)
 
 				await user.dm_channel.send(embed=ban_embed)
 
@@ -212,7 +212,11 @@ class Discipline(commands.Cog):
 					unban_embed = discord.Embed()
 					unban_embed.color = discord.Colour.dark_green()
 					unban_embed.title = f"You have served your temporary ban in {server.name}."
-					unban_embed.add_field(name=f"Total Severity Points in {server.name}", value=warning[severity_points_index], inline=False)
+					unban_embed.add_field(name=f"Total Severity Points in {server.name}", value=warning[severity_points_index], inline=True)
+					try:
+						unban_embed.add_field(name=f"Invite Link", value=str(server.create_invite(reason="temporary ban expired")), inline=True)
+					except:
+						unban_embed.add_field(name=f"Invite Link", value="Sorry! Turt bot does not have permission to create invites.", inline=True)
 					unban_embed.add_field(name="Ban Punishments:", 
 								value="10 severity points: 1 Hour\n" + 
 										"20 severity points: 1 Day\n" +
