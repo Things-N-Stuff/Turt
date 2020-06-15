@@ -1,7 +1,6 @@
 # import modules
 from bot.bot import Bot
 import bot.constants as constants
-from bot.errors import NotInServerError
 
 # import discord.py api wrapper
 import discord
@@ -50,15 +49,15 @@ async def on_ready():
 	bot.sql.setup_database_with_all_users(bot)
 	print("Deleting unwanted reactions from elections...")
 	await (bot.get_cog("Elections")).delete_unwanted_election_reactions()
+	#print("Unbanning those who have served their time...")
+	#await (bot.get_cog("Discipline")).checkbans()
 	print("Ready!")
 
 @bot.event
 async def on_command_error(ctx, error):
+	if isinstance(error, commands.errors.NoPrivateMessage): return # This is ok
 	print(error)
-	if isinstance(error, commands.errors.NoPrivateMessage): return #Thats expected
-	else:
-		print(error)
-		await ctx.send_help(ctx.command)
+	await ctx.send_help(ctx.command)
 
 
 #Run the bot
