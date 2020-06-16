@@ -27,6 +27,22 @@ Note: Turt bot has been known (rarely) to hang on startup when checking previous
 Our current plans for Turt can be seen [here](https://docs.google.com/document/d/1-u4tWmgt2BiIjdiXu1FnjCUi64xBHLHDEhf8N6rCe-g).  
 If you wish to contribute to this list, [open an issue](https://github.com/Things-N-Stuff/Turt/issues).
 
+## Server Permissions (BE VERY CAUTIOUS WITH THIS)
+
+It is recommended to give Turt bot the following server permissions in each server (however you should be skeptical):
+- `manage server` - Allows Turt to see all server invites so banned members can be invited back once their ban has expired
+    - Additionally, "Members with this permission can change the server's name or move regions". If you do not want this, then do NOT enable this permission for Turt
+        - Note that vanilla Turt does not do either or these things (however the bot hoster may have modified the code to raid your server)
+    - Without this permission, Turt will be unable to give server invites with ban messages, potentially preventing people from returning to the server after their ban.
+- `ban members` - Allows Turt to ban members when they reach a bannable number of severity points in the warning system
+    - Note that vanilla Turt will not ban users for any other reason (however the bot hoster may have modified the code to raid your server)
+    - Without this permission, Turt will only be able to recommend bans, but will be unable to enforce them or unban people when their temporary ban has expired.
+- `manage messages` - Allows Turt to delete other users' messages.
+    - This allows for 2 things:
+        - Turt can enforce link-only rules in link-only channels (the bot deletes non-link messages)
+        - Turt can delete reactions from active election messages that are unrelated to the election
+    - Note that bot hosters may have modified the code, allowing the bot hoster to raid your server if this is enabled (Be cautious and skeptical).
+
 ## Features
 
 - Elections:
