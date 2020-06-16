@@ -104,12 +104,15 @@ class Discipline(commands.Cog):
         current_time_in_hours = int(math.ceil(time.time()/3600)) # Rounded up
         end_hour = current_time_in_hours
         ban_level = 0
-        if math.ceil(severity_points) <= math.floor(total_severity_points): #There will be a punishment
-            index = math.floor(total_severity_points)
+        if math.ceil(severity_points/10) <= math.floor(total_severity_points/10): #There will be a punishment
+            index = math.floor(total_severity_points/10)-1
             if index > 3: index = 3 #The max punishment has an index of 3
             punished = True
             end_hour += bans_in_hours[index]
             ban_level = index
+
+        if severity == 0: 
+            punished = False
 
         if punished:
 
@@ -192,7 +195,6 @@ class Discipline(commands.Cog):
     @tasks.loop(seconds=60)
     async def check_bans(self):
         await self.bot.wait_until_ready()
-        print("Checking unbans")
 
         if datetime.now().minute == 0 or self.has_not_checked_bans:
             self.has_not_checked_bans = False
@@ -208,7 +210,6 @@ class Discipline(commands.Cog):
             severity_points_index = 2
             end_time_index = 3
             for warning in warnings:
-                print("WARNING")
                                 
                 end_time = warning[end_time_index]
                 if end_time == -1: # This person is not banned
@@ -216,16 +217,12 @@ class Discipline(commands.Cog):
         
                 user_id = warning[user_id_index]
                 server_id = warning[server_id_index]
-                print(current_time_in_hours)
-                print(end_time)
                 if current_time_in_hours - end_time > 0: #Their ban has been lifted because they have served their time
                     #unban
-                    print("Getting shit")
                     user = await self.bot.fetch_user(user_id)
                     server = await self.bot.fetch_guild(server_id)
                     bot_user = await server.fetch_member(self.bot.user.id)
                     if user is None or server is None: 
-                        print("user or server is none")
                         return
                                         
                     #Update EndTime to -1 (Meaning they arent banned now)
