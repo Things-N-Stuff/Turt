@@ -27,7 +27,7 @@ except Exception as e:
 if not os.path.isfile(constants.db_file):
     print("Turt bot has not been setup. Setup turt bot by running `python3 setup.py`")
     sys.exit(-2)
-		
+                
 
 
 # Turt instance
@@ -62,8 +62,8 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.errors.CheckFailure): return #Thats expected
     if isinstance(error, commands.errors.NoPrivateMessage): return #Thats expected
     else:
-    	print(error)
-    	await ctx.send_help(ctx.command)
+        print(error)
+        await ctx.send_help(ctx.command)
 
 #Run the bot
 constants.bot.run(bot_token)
