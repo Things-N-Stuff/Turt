@@ -3,7 +3,7 @@
 Discord Server Moderation Bot
 
 ## Requirements
- - python3
+ - python3.6
  - [discord.py](https://github.com/Rapptz/discord.py)
 
 ## Using the Bot
@@ -13,12 +13,12 @@ If you haven't already, clone this repo by running the following command.
 git clone https://github.com/Things-N-Stuff/Turt
 ```
 
-You then must set up the local database: `python3 setup.py`
+You then must set up the local database: `python3.6 setup.py`
 
 Before you can actually start using the bot, you will need to create your own `config.py`.
 The sample config is `config.py.template` and holds all possible configuration options aswell as a comment describing what each is for.
 
-After configuration, just run `python3 turt.py`.
+After configuration, just run `python3.6 turt.py`.
 
 Note: Turt bot has been known (rarely) to hang on startup when checking previous elections on some versions of python. If this happens, install python3.6 and run `python3.6 turt.py` instead. I have no clue why this works, but it does for me.
 
