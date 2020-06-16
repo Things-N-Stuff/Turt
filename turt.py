@@ -55,6 +55,7 @@ async def on_ready():
 
 @constants.bot.event
 async def on_command_error(ctx, error):
+    print(error)
 	if isinstance(error, commands.errors.CheckFailure): return #Thats expected
 	if isinstance(error, commands.errors.NoPrivateMessage): return #Thats expected
 	else:
