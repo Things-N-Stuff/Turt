@@ -1,18 +1,18 @@
 # Rename this file to `config.py` and fill out the information
 # NOTE: Some of the configured things are server specific, and therefore need to be changed in the server using commands
 
-bot_token = 'insert bot token here'
+bot_token = 'bot_token_here'
 
 # Custom string printed in the default help message
 bot_description = 'Moderation bot'
 
-# Tuple of user ids that can issue commands to the bot (a whitelist)
-# There must be at least 2 ids here. If you need more ids, just put -1 as the extra
-# b/c nobody has that userid
-bot_admins = ( user_id1, user_id2, user_id3, )
+# The bot user's id (You can get it by right clicking on the bot user)
+# You will have to run the bot first and add it to a server before you get its id
+bot_user_id =
 
-# Tuple of channel ids that can only contain links
-link_only_channels = (channel1, channel2,)
+# Tuple of user ids that can issue the shutdown and restart command
+# NOTE: It is recommended that only the bot hoster have access to these commands (and a few extremely trusted friends, I suppose)
+shutdown_admins = (,)
 
 # Command prefix for the bot
 bot_prefix = './t '
