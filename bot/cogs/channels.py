@@ -2,6 +2,8 @@
 import discord
 from discord.ext import commands, tasks
 
+from urllib.parse import urlparse
+
 from bot.decorators import server_only
 from bot.decorators import whitelist_only
 

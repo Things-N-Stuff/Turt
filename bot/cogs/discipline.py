@@ -126,9 +126,9 @@ class Discipline(commands.Cog):
 				ban_embed.set_thumbnail(url=member.avatar_url)
 				ban_embed.title = f"{user.display_name} has been banned from the server for {bans_strings[ban_level]}."
 				ban_embed.description = f"The last straw:\n{reason}"
-				ban_embed.add_field(name="Increased Severity Points", value=severity, inline=True)
+				ban_embed.add_field(name="Severity Points Given", value=severity, inline=True)
 				ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
-				ban_embed.add_field(name="Ban Duration:", value=bans_strings[ban_level], inline=False)
+				ban_embed.add_field(name="Ban Duration", value=bans_strings[ban_level], inline=False)
 
 				await ctx.channel.send(embed=ban_embed)
 
@@ -155,14 +155,15 @@ class Discipline(commands.Cog):
 			ban_embed = discord.Embed()
 			ban_embed.color = discord.Colour.orange()
 			ban_embed.set_author(name=f"Warned by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
+			ban_embed.set_thumbnail(url=user.avatar_url)
 			ban_embed.title = f"{user.mention} has been warned."
 			ban_embed.description = f"Reason: {reason}"
 			ban_embed.add_field(name="Severity Points Given", value=severity, inline=True)
 			ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
-			ban_embed.add_field(name="Ban Punishments:", 
+			ban_embed.add_field(name="Ban Punishments", 
 								value="10 severity points: 1 Hour\n" + 
 										"20 severity points: 1 Day\n" +
-										"30 severity points: 1 week\n" + 
+										"30 severity points: 1 Week\n" + 
 										"Every 10 severity points afterwards: 1 Month (30 days)",
 								inline=False)
 
@@ -172,6 +173,8 @@ class Discipline(commands.Cog):
 				await user.create_dm()
 
 			ban_embed.title = f"You have been warned in {ctx.guild.name}."
+			ban_embed.set_thumbnail(url=discord.Embed.Empty)
+
 
 			await user.dm_channel.send(embed=ban_embed)
 
