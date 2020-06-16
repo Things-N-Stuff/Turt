@@ -105,7 +105,7 @@ class Discipline(commands.Cog):
 		ban_level = 0
 		for points in reversed(range(4)): #Apply the appropriate number of hours to be banned
 			if total_severity_points >= points*10 and severity_points < points*10:
-				index = int((points-1)/10)
+				index = points-1
 				end_hour += bans_in_hours[index]
 				punished = True
 				ban_level = index
