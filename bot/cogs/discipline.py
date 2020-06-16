@@ -156,7 +156,7 @@ class Discipline(commands.Cog):
 			ban_embed.color = discord.Colour.orange()
 			ban_embed.set_author(name=f"Warned by {ctx.author.display_name}", icon_url=ctx.author.avatar_url)
 			ban_embed.set_thumbnail(url=user.avatar_url)
-			ban_embed.title = f"{user.mention} has been warned."
+			ban_embed.title = f"{user.display_name} has been warned."
 			ban_embed.description = f"Reason: {reason}"
 			ban_embed.add_field(name="Severity Points Given", value=severity, inline=True)
 			ban_embed.add_field(name="Total Severity Points", value=total_severity_points, inline=True)
