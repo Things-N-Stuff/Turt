@@ -38,21 +38,21 @@ class BotHosting(commands.Cog):
     async def restart(self, ctx):
         '''Restart the process. Must be whitelisted to restart the bot.
         In order to restart the bot, you must be given permission by the bot hoster.'''
-            await self.bot.wait_until_ready()
+        await self.bot.wait_until_ready()
         
-            if not ctx.author.id in shutdown_admins: return
+        if not ctx.author.id in shutdown_admins: return
         
-            await ctx.channel.send("Restarting...")
-            try:
-                self.bot.sql.conn.commit()
-                self.bot.sql.disconnect()
-                # spawn process
-                os.system("python3 turt.py")
-                await self.bot.close()
-            except:
-                # spawn process
-                os.system("python3 turt.py")
-                sys.exit(2)
+        await ctx.channel.send("Restarting...")
+        try:
+            self.bot.sql.conn.commit()
+            self.bot.sql.disconnect()
+            # spawn process
+            os.system("python3 turt.py")
+            await self.bot.close()
+        except:
+            # spawn process
+            os.system("python3 turt.py")
+            sys.exit(2)
 
 
 def setup(bot: commands.Bot) -> None:

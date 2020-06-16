@@ -9,7 +9,7 @@ class Database(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        bot.sql.determine_if_user_exists(member.id)
+        self.bot.sql.determine_if_user_exists(member.id)
 
 def setup(bot: commands.Bot) -> None:
     bot.add_cog(Database(bot))

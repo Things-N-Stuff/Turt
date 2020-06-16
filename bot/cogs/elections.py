@@ -306,8 +306,8 @@ class Elections(commands.Cog):
                     no=0
         
                     for reaction in election_message.reactions:
-                    if reaction.emoji == thumbsup.decode() : yes = reaction.count
-                    if reaction.emoji == thumbsdown.decode() : no = reaction.count
+                        if reaction.emoji == thumbsup.decode() : yes = reaction.count
+                        if reaction.emoji == thumbsdown.decode() : no = reaction.count
         
                     if(yes > no): # Note that it has to be a simple majority (tie does not count)
                         winner = "The majority voted :thumbsup:!"
@@ -394,8 +394,8 @@ class Elections(commands.Cog):
             message = ""
             if time_left < 1:
                 message = str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
-                else:
-                    message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
+            else:
+                message = str(time_left) + " Hours, " + str((row[end_time_index]*60 - current_time_in_minutes) - 60*time_left) + " Minutes"
 
             embed = election_message.embeds[0]
             embed.set_field_at(index=0, name="Time Left", value=message, inline=True)
@@ -406,26 +406,26 @@ class Elections(commands.Cog):
         for election_channel_id in self.bot.sql.cursor.fetchall(): #Iterate through all the voting channels
             election_channel_id = election_channel_id[0]
             if election_channel_id == -1: return # The server does not have the election channel set up, so ignore it
-                channel = await self.bot.fetch_channel(election_channel_id)
-                self.bot.sql.cursor.execute("SELECT MessageID FROM elections")
-                for election_message_id in self.bot.sql.cursor.fetchall(): #Get each message ID
-                    election_message_id = election_message_id[0]
+            channel = await self.bot.fetch_channel(election_channel_id)
+            self.bot.sql.cursor.execute("SELECT MessageID FROM elections")
+            for election_message_id in self.bot.sql.cursor.fetchall(): #Get each message ID
+                election_message_id = election_message_id[0]
                 try:
                     message = await channel.fetch_message(election_message_id)
                     if message.author != self.bot.user.id: continue # If the message does not belong to this bot, then dont worry about it
-                        reactions = message.reactions
-                        options_field_index = 2
-                        embeds = message.embeds
-                        election_embed = embeds[0]
-                        if len(election_embed.fields) >= options_field_index+1 and election_embed.fields[options_field_index].name == "Options:": #This is a multi-option election
-                            for reaction in reactions:
-                                if isinstance(reaction.emoji, discord.Emoji): 
-                                    await reaction.clear() #Elections will never use custom emojis
-                                    continue
-                                emojis = numbers_emoji_bytes[0:len(election_embed.fields[options_field_index].value.split("\n"))] #Sublist
-                                if reaction.emoji.encode() not in emojis: #DELETE IT
+                    reactions = message.reactions
+                    options_field_index = 2
+                    embeds = message.embeds
+                    election_embed = embeds[0]
+                    if len(election_embed.fields) >= options_field_index+1 and election_embed.fields[options_field_index].name == "Options:": #This is a multi-option election
+                        for reaction in reactions:
+                            if isinstance(reaction.emoji, discord.Emoji): 
+                                await reaction.clear() #Elections will never use custom emojis
+                                continue
+                            emojis = numbers_emoji_bytes[0:len(election_embed.fields[options_field_index].value.split("\n"))] #Sublist
+                            if reaction.emoji.encode() not in emojis: #DELETE IT
                                 await reaction.clear()
-                        else: # A Yes/no election
+                    else: # A Yes/no election
                         for reaction in reactions:
                             if isinstance(reaction.emoji, discord.Emoji): 
                                 await reaction.clear() #Elections will never use custom emojis

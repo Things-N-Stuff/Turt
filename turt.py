@@ -13,8 +13,6 @@ from datetime import datetime
 
 from bot import constants
 
-tabs
-
 # Import the configuration
 try:
     from config import bot_token, bot_prefix, bot_description, shutdown_admins, bot_user_id

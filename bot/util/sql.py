@@ -14,20 +14,20 @@ class SQLConnector():
     def __init__(self, db_file):
         self.db_file = db_file
 
-        def connect(self) -> bool:
-            # Create connection with db
-            try:
-                self.conn = sqlite3.connect(self.db_file)
-                self.cursor = self.conn.cursor()
-            except Exception as e:
-                print(e);
-                print("Unable to create a connection with sqlite database `sqlite_database`. It could be corrupted.")
-                return False
-            return True
+    def connect(self) -> bool:
+        # Create connection with db
+        try:
+            self.conn = sqlite3.connect(self.db_file)
+            self.cursor = self.conn.cursor()
+        except Exception as e:
+            print(e);
+            print("Unable to create a connection with sqlite database `sqlite_database`. It could be corrupted.")
+            return False
+        return True
 
     def disconnect(self):
         self.conn.commit() #Make sure everything is saved
-            self.conn.close()
+        self.conn.close()
 
 
     def determine_if_server_exists(self, server_id): #And add the server if not

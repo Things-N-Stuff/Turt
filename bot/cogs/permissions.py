@@ -44,8 +44,8 @@ class Permissions(commands.Cog):
             else:
                 await ctx.channel.send("That user is already whitelisted on this server.")
                 return
-            else:
-                await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")
+        else:
+            await ctx.channel.send("[whitelisted] must either be 'true' or 'false'.")
 
     def is_whitelisted(self, user_id, server_id) -> bool:
         self.bot.sql.cursor.execute("SELECT userid FROM whitelist WHERE serverid=? AND userid=?", (server_id, user_id))
