@@ -13,6 +13,8 @@ from datetime import datetime
 
 from bot import constants
 
+		tabs
+
 # Import the configuration
 try:
 	from config import bot_token, bot_prefix, bot_description, shutdown_admins, bot_user_id
@@ -25,6 +27,7 @@ except Exception as e:
 if not os.path.isfile(constants.db_file):
 	print("Turt bot has not been setup. Setup turt bot by running `python3 setup.py`")
 	sys.exit(-2)
+		
 
 
 # Turt instance
