@@ -6,13 +6,13 @@ import sqlite3
 
 class SQLConnector():
 
-	db_file = None
+    db_file = None
 
-	conn = None
-	cursor = None
+    conn = None
+    cursor = None
 
-	def __init__(self, db_file):
-		self.db_file = db_file
+    def __init__(self, db_file):
+	self.db_file = db_file
 
 	def connect(self) -> bool:
 		# Create connection with db

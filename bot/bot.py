@@ -21,16 +21,16 @@ from config import bot_token, bot_prefix, bot_description, shutdown_admins, bot_
 # Turt bot instance class
 class Bot(commands.Bot):
 	
-	sql = None
+    sql = None
 
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+	super().__init__(*args, **kwargs)
 
-		self.connect_to_sqlite()
+	self.connect_to_sqlite()
 
-	def connect_to_sqlite(self):
-		# Create connection with database
-		self.sql = sql.SQLConnector(constants.db_file)
-		if not self.sql.connect():
-			sys.exit(-3)
+    def connect_to_sqlite(self):
+	# Create connection with database
+	self.sql = sql.SQLConnector(constants.db_file)
+	if not self.sql.connect():
+	    sys.exit(-3)
 
