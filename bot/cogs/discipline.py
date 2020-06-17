@@ -82,6 +82,10 @@ class Discipline(commands.Cog):
             await ctx.channel.send("You cannot give users negative severity points.")
             return
 
+        if len(reason.strip()) == 0:
+            await ctx.channel.send("Warn reason cannot be whitespace.")
+            return
+
         # Determine the number of severity points they now have
         cursor.execute("SELECT severitypoints FROM warnings WHERE userid=? AND serverid=?", (user_id, ctx.guild.id))
         severity_points = cursor.fetchone()
@@ -98,18 +102,20 @@ class Discipline(commands.Cog):
         conn.commit()
 
         # Determine their punishment (if they have reached a punishment)
-        # TODO: Make this message be an embed
 
         punished = False
         current_time_in_hours = int(math.ceil(time.time()/3600)) # Rounded up
         end_hour = current_time_in_hours
         ban_level = 0
-        if math.ceil(severity_points) <= math.floor(total_severity_points): #There will be a punishment
-            index = math.floor(total_severity_points)
+        if math.ceil(severity_points/10) <= math.floor(total_severity_points/10) and severity_points % 10 != 0: #There will be a punishment
+            index = math.floor(total_severity_points/10)-1
             if index > 3: index = 3 #The max punishment has an index of 3
             punished = True
             end_hour += bans_in_hours[index]
             ban_level = index
+
+        if severity == 0: 
+            punished = False
 
         if punished:
 
@@ -132,19 +138,30 @@ class Discipline(commands.Cog):
                     if len(invites) == 0:
                         ban_embed.add_field(name=f"Invite (For when ban expires)", value=f"Sorry! {ctx.guild.name} does not have any active invites!", inline=False)
                     else:
-                        ban_embed.add_field(name=f"Invite (For when ban expires)", value=str(invites[0]), inline=False) #Gives the first invite
+                        got_indefinite_invite = False
+                        longest_invite = invites[0]
+                        for invite in invites:
+                            if invite.max_age == 0: #If it is indefinite use it
+                                ban_embed.add_field(name=f"Invite (For when ban expires)", value=str(invite), inline=False)
+                                got_indefinite_invite = True
+                                break
+                            if invite.max_age > longest_invite.max_age: #Otherwhise we will continue searching for the longest invite
+                                longest_invite = invite
+                        if not got_indefinite_invite: #Give the longest invite
+                            ban_embed.add_field(name=f"Invite (For when ban expires)", value=str(longest_invite), inline=False)
                 else:
                     ban_embed.add_field(name=f"Invite (For when ban expires)", value=f"Sorry! Turt bot does not have permission to give out invites!", inline=False)
 
                 if user.dm_channel is None:
                     await user.create_dm()
-
+                    
                 await user.dm_channel.send(embed=ban_embed)
                     
                 ban_embed.title = f"{user.display_name} has been banned from the server for {bans_strings[ban_level]}."
                 ban_embed.set_thumbnail(url=member.avatar_url)
                 ban_embed.remove_field(2) #Remove the invite link
                 ban_embed.set_footer(text="")
+
 
                 await ctx.channel.send(embed=ban_embed)
 
@@ -187,12 +204,10 @@ class Discipline(commands.Cog):
             ban_embed.set_thumbnail(url=user.avatar_url)
 
             await ctx.channel.send(embed=ban_embed)
-
-
+            
     @tasks.loop(seconds=60)
     async def check_bans(self):
         await self.bot.wait_until_ready()
-        print("Checking unbans")
 
         if datetime.now().minute == 0 or self.has_not_checked_bans:
             self.has_not_checked_bans = False
@@ -208,7 +223,6 @@ class Discipline(commands.Cog):
             severity_points_index = 2
             end_time_index = 3
             for warning in warnings:
-                print("WARNING")
                                 
                 end_time = warning[end_time_index]
                 if end_time == -1: # This person is not banned
@@ -216,16 +230,12 @@ class Discipline(commands.Cog):
         
                 user_id = warning[user_id_index]
                 server_id = warning[server_id_index]
-                print(current_time_in_hours)
-                print(end_time)
                 if current_time_in_hours - end_time > 0: #Their ban has been lifted because they have served their time
                     #unban
-                    print("Getting shit")
                     user = await self.bot.fetch_user(user_id)
                     server = await self.bot.fetch_guild(server_id)
                     bot_user = await server.fetch_member(self.bot.user.id)
                     if user is None or server is None: 
-                        print("user or server is none")
                         return
                                         
                     #Update EndTime to -1 (Meaning they arent banned now)
