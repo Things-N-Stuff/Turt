@@ -82,6 +82,10 @@ class Discipline(commands.Cog):
             await ctx.channel.send("You cannot give users negative severity points.")
             return
 
+        if len(reason.strip()) == 0:
+            await ctx.channel.send("Warn reason cannot be whitespace.")
+            return
+
         # Determine the number of severity points they now have
         cursor.execute("SELECT severitypoints FROM warnings WHERE userid=? AND serverid=?", (user_id, ctx.guild.id))
         severity_points = cursor.fetchone()
