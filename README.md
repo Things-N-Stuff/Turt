@@ -13,7 +13,7 @@ If you haven't already, clone this repo by running the following command.
 git clone https://github.com/Things-N-Stuff/Turt
 ```
 
-You then must set up the local database: `python3.6 setup.py`
+You then must set up the local database: `python3 setup.py`
 
 Before you can actually start using the bot, you will need to create your own `config.py`.
 The sample config is `config.py.template` and holds all possible configuration options aswell as a comment describing what each is for.
