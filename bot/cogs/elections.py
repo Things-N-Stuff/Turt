@@ -7,9 +7,13 @@ import sqlite3
 from sqlite3 import Error
 
 from bot.decorators import server_only, whitelist_only, server_owner_only
+from bot import constants
 
 # python util
 import time
+import math
+from datetime import datetime
+from datetime import timedelta
 
 class Elections(commands.Cog):
     def __init__(self, bot):
@@ -98,15 +102,17 @@ class Elections(commands.Cog):
         '''
 
         # Determine if this server allows all users to call votes
-        if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): #If the user is whitelisted, then they will be able to anyway (No need to waste processing power)
+        permissions_cog = self.bot.get_cog("Permissions")
+        if not permissions_cog.is_whitelisted(ctx.author.id, ctx.guild.id): #If the user is whitelisted, then they will be able to anyway (No need to waste processing power)
             self.bot.sql.cursor.execute("SELECT UsersCanCallVote FROM servers WHERE ServerID=?", (ctx.guild.id,))
             result = self.bot.sql.cursor.fetchone()
             if result is None: 
-                determine_if_server_exists()
+                determine_if_server_exists(ctx.guild.id)
                 await ctx.channel.send("The election channel has not been configured for this server.\n`./t electionchannel [channelID]` to setup election channel.")
                 return
             else:
                 if result[0] == 0: return #This server does not allow everyone to call elections
+
 
         # The election channel must be configured in order to create elections
         self.bot.sql.cursor.execute("SELECT * FROM servers WHERE ServerID=?", (ctx.guild.id,))
@@ -117,6 +123,7 @@ class Elections(commands.Cog):
         if voting_channel_id is None or voting_channel_id == -1: # Not configured
             await ctx.channel.send("The election channel has not been configured for this server.\n`./t electionchannel [channelID]` to setup election channel.")
             return
+
 
         # Make sure the user has not voted in the last 12 hours in any election
         next_time_index = 1 # The index of when the user can create an election next
@@ -135,9 +142,10 @@ class Elections(commands.Cog):
             await ctx.channel.send("An election must go for a minimum of 1 day")
             return
 
+
         #Getting time
         hours_in_day = 24
-        additional_hours = ceil(hours_in_day*(num_days)) #Round up
+        additional_hours = math.ceil(hours_in_day*(num_days)) #Round up
         endTime = current_time_in_hours + additional_hours # in hours
         endTimeAsDate = datetime.now().replace(microsecond=0, second=0, minute=0) + timedelta(hours=additional_hours) + timedelta(hours=1) #Hours should round up
 
@@ -158,7 +166,7 @@ class Elections(commands.Cog):
         # Send election message in election channel
         election_embed = discord.Embed()
         election_embed.set_author(name="Initiated by " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
-        election_embed.title = new_election + name.title()
+        election_embed.title = "New Election: " + name.title()
         election_embed.description = desc.capitalize()
         if multi_option is False: #not multioption
             election_embed.set_footer(text="Vote by reacting with :thumbsup: or :thumbsdown:")
@@ -170,23 +178,26 @@ class Elections(commands.Cog):
 
         election_embed.add_field(name="ID", value="`"+str(electionID+1)+"`", inline=True) #We want this as code block to make it look good
 
+
         if multi_option is True: #Lets put all the options
             all_options = ""
             for i in range(len(argv)): #TODO: Figure out how to clean this crap up
-                number = ":" + numbers[i] + ":"
+                number = ":" + constants.numbers[i] + ":"
                 all_options += number + " " + argv[i] + "\n"
-                election_embed.add_field(name="Options:", value=all_options, inline=False)
+            election_embed.add_field(name="Options:", value=all_options, inline=False)
 
-            message = await self.bot.sql.get_channel(voting_channel_id).send(embed=election_embed) #Send it to the voting channel
-
-            # Store the election in the database
-            self.bot.sql.cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+        voting_channel = ctx.guild.get_channel(voting_channel_id)
+        message = await voting_channel.send(embed=election_embed) #Send it to the voting channel
+        # Store the election in the database
+        self.bot.sql.cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                                                                                         (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
                                                                                         options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8], options[9]))
-            if not await self.bot.get_cog("Permissions").is_whitelisted(ctx.author.id, ctx.guild.id): self.bot.sql.cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
+        permissions_cog = self.bot.get_cog("Permissions")
+        if not permissions_cog.is_whitelisted(ctx.author.id, ctx.guild.id):
+            self.bot.sql.cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
             self.bot.sql.conn.commit()
 
-            await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
+        await ctx.channel.send("Election created! Vote ends in " + str(additional_hours) + " Hours.")
 
     @commands.Command
     @server_only()
@@ -213,7 +224,7 @@ class Elections(commands.Cog):
         # Determine if the message is a vote message
         embeds = message.embeds
         if message.author.id == self.bot_user_id: 
-            if len(embeds) != 0 and embeds[0].title.startswith(new_election):
+            if len(embeds) != 0 and embeds[0].title.startswith("New Election"):
                 pass
                 #This is an election message, neat
             else: #Not an election message
@@ -264,7 +275,7 @@ class Elections(commands.Cog):
             self.bot.sql.cursor.execute("SELECT * FROM servers WHERE ServerID=?", (server_id,))
             result = self.bot.sql.cursor.fetchone()
             if result is None: # The server isnt stored in the database, so add it
-                determine_if_server_exists()
+                determine_if_server_exists(server_id)
                 return
             else: vote_channel_id = result[1]
 
@@ -389,7 +400,7 @@ class Elections(commands.Cog):
             # The thing has not ended, so we should update the time until it does
 
             #Update time
-            time_left = row[end_time_index] - ceil(current_time_in_minutes/60) # Round up
+            time_left = row[end_time_index] - math.ceil(current_time_in_minutes/60) # Round up
 
             message = ""
             if time_left < 1:

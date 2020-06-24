@@ -54,30 +54,6 @@ async def on_ready():
     await (constants.bot.get_cog("Elections")).delete_unwanted_election_reactions()
     print("Ready!")
 
-#@constants.bot.event
-#async def on_guild_join(guild): #Send server permissions recommendation in the main channel (Use a nice and fancy embed)
-#
-#    await guild.system_channel.send("Thank you for using Turt Bot!\n" +
-#                                    "For a full list of features and tips on using them, see the github page: <https://github.com/Things-N-Stuff/Turt>")
-
-#    #Send permissions recommendations
-#    permissions_embed = discord.Embed()
-#    permissions_embed.set_author(name="Be careful with Server Permissions", icon_url="https://cdn4.iconfinder.com/data/icons/online-menu/64/attencion_exclamation_mark_circle_danger-512.png")
-#    permissions_embed.title = "Server Permissions Recommendations for Turt Bot (Review each carefully)"
-#    permissions_embed.description = "For Turt bot to be fully functional, the following permissions are recommended. If you wish to not use these features, simply disable their permissions in your server settings:"
-#    permissions_embed.add_field(name="Manage Server",
-#                    value="`manage server` - Allows turt bot to see server invites in order to reinvite banned members whose temporary bans have expired.",
-#                    inline=False)
-#    permissions_embed.add_field(name="Ban Members",
-#                    value="`ban members` - Allows turt bot to ban members when they have accumulated too many severity points. Cannot unban temporarily banned users without this.",
-#                    inline=False)
-#    permissions_embed.add_field(name="Manage Messages",
-#                    value="`manage messages` - Allows turt bot to delete non-link messages in link only channels. Also allows turt bot to remove unrelated reactions from ongoing elections.",
-#                    inline=False)
-#    permissions_embed.set_footer(text="BE EXTREMELY CAREFUL WITH THIS. BOT HOSTERS COULD HAVE MODIFIED THE CODE TO RAID YOUR SERVER.", icon_url="https://cdn4.iconfinder.com/data/icons/online-menu/64/attencion_exclamation_mark_circle_danger-512.png")
-#    permissions_embed.color = discord.Color.red()
-#    await guild.system_channel.send(embed=permissions_embed)
-
 @constants.bot.event
 async def on_command_error(ctx, error):
     print(error)
