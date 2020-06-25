@@ -377,7 +377,7 @@ class Elections(commands.Cog):
                                         winner += "**'" + options[i] + "**', "
         
                             else: #There is one outright winner
-                                winner = "The majority voted **'" + options[tied[0]] + "'**!"#Remember there should only be the largest value in the `tied` list
+                                winner = "**'" + options[tied[0]].capitalize() + "'** earned the most votes!"#Remember there should only be the largest value in the `tied` list
 
                 vote_embed.description = winner
 
