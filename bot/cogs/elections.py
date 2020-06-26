@@ -249,7 +249,7 @@ class Elections(commands.Cog):
             if isinstance(payload.emoji, discord.Emoji):
                 await message.clear_reaction(payload.emoji) #Elections will never use custom emojis
                 return
-            if str(payload.emoji).encode() != thumbsup and str(payload.emoji).encode() != thumbsdown: #DELETE IT
+            if str(payload.emoji).encode() != constants.thumbsup and str(payload.emoji).encode() != constants.thumbsdown: #DELETE IT
                 await message.clear_reaction(payload.emoji)
 
     @tasks.loop(seconds=60) 
@@ -269,6 +269,7 @@ class Elections(commands.Cog):
         multi_option_indicator_index = 7
         option_start_index = 8
         for row in self.bot.sql.cursor.fetchall():
+            print("Found election")
             #Election info needed to check status and update time
             server_id = row[server_index]
             vote_channel_id = None
@@ -288,6 +289,7 @@ class Elections(commands.Cog):
 
             #If the vote is over:
             if int(current_time_in_minutes/60) > row[end_time_index]: #Vote has concluded
+                print("Vote has concluded")
                 # Send message to channel
 
                 # If the channel isnt set up, then dont do anything for this server (Note that other server elections are in this same list)
@@ -308,7 +310,7 @@ class Elections(commands.Cog):
 
                 #Vote conclusion embed message
                 vote_embed = discord.Embed()
-                vote_embed.title = election_over + row[name_index].title()
+                vote_embed.title = "Election Concluded: " + row[name_index].title()
                 vote_embed.set_author(name="Initiated by " + user.display_name, icon_url=user.avatar_url)
                 vote_embed.add_field(name="Description", value=row[desc_index].capitalize(), inline=False)
                 if row[multi_option_indicator_index] == 0: #not multioption
@@ -317,8 +319,8 @@ class Elections(commands.Cog):
                     no=0
         
                     for reaction in election_message.reactions:
-                        if reaction.emoji == thumbsup.decode() : yes = reaction.count
-                        if reaction.emoji == thumbsdown.decode() : no = reaction.count
+                        if reaction.emoji == constants.thumbsup.decode() : yes = reaction.count
+                        if reaction.emoji == constants.thumbsdown.decode() : no = reaction.count
         
                     if(yes > no): # Note that it has to be a simple majority (tie does not count)
                         winner = "The majority voted :thumbsup:!"
@@ -440,7 +442,7 @@ class Elections(commands.Cog):
                         for reaction in reactions:
                             if isinstance(reaction.emoji, discord.Emoji): 
                                 await reaction.clear() #Elections will never use custom emojis
-                            elif reaction.emoji.encode() != thumbsup and reaction.emoji.encode() != thumbsdown: #DELETE IT
+                            elif reaction.emoji.encode() != constants.thumbsup and reaction.emoji.encode() != constants.thumbsdown: #DELETE IT
                                 await reaction.clear()
                 except Exception as e:
                     pass
