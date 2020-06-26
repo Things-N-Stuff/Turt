@@ -188,10 +188,21 @@ class Elections(commands.Cog):
 
         voting_channel = ctx.guild.get_channel(voting_channel_id)
         message = await voting_channel.send(embed=election_embed) #Send it to the voting channel
+        #Add all the reactions to the message
+        if multi_option is False: #yes/no
+            await message.add_reaction(constants.thumbsup.decode())
+            await message.add_reaction(constants.thumbsdown.decode())
+        if multi_option is True: #Multi option
+            for i in range(len(argv)):
+                await message.add_reaction(constants.number_emoji_bytes[i])
+
         # Store the election in the database
+        print("Storing")
         self.bot.sql.cursor.execute("INSERT INTO elections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                                                                                         (electionID+1, message.id, ctx.guild.id, ctx.author.id, name, desc, endTime, multi_option, 
                                                                                         options[0], options[1], options[2], options[3], options[4], options[5], options[6], options[7], options[8], options[9]))
+        self.bot.sql.conn.commit()
+
         permissions_cog = self.bot.get_cog("Permissions")
         if not permissions_cog.is_whitelisted(ctx.author.id, ctx.guild.id):
             self.bot.sql.cursor.execute("UPDATE users SET WhenCanVoteNext = ? WHERE UserID = ?", (current_time_in_hours+24, ctx.author.id))
@@ -223,7 +234,7 @@ class Elections(commands.Cog):
 
         # Determine if the message is a vote message
         embeds = message.embeds
-        if message.author.id == self.bot_user_id: 
+        if message.author.id == self.bot.user.id: 
             if len(embeds) != 0 and embeds[0].title.startswith("New Election"):
                 pass
                 #This is an election message, neat
@@ -269,7 +280,6 @@ class Elections(commands.Cog):
         multi_option_indicator_index = 7
         option_start_index = 8
         for row in self.bot.sql.cursor.fetchall():
-            print("Found election")
             #Election info needed to check status and update time
             server_id = row[server_index]
             vote_channel_id = None
@@ -289,7 +299,6 @@ class Elections(commands.Cog):
 
             #If the vote is over:
             if int(current_time_in_minutes/60) > row[end_time_index]: #Vote has concluded
-                print("Vote has concluded")
                 # Send message to channel
 
                 # If the channel isnt set up, then dont do anything for this server (Note that other server elections are in this same list)
@@ -319,8 +328,14 @@ class Elections(commands.Cog):
                     no=0
         
                     for reaction in election_message.reactions:
-                        if reaction.emoji == constants.thumbsup.decode() : yes = reaction.count
-                        if reaction.emoji == constants.thumbsdown.decode() : no = reaction.count
+                        if reaction.emoji == constants.thumbsup.decode(): 
+                            yes = reaction.count
+                            if self.bot.user in await reaction.users().flatten():
+                                yes = yes-1
+                        if reaction.emoji == constants.thumbsdown.decode(): 
+                            no = reaction.count
+                            if self.bot.user in await reaction.users().flatten():
+                                no = no-1
         
                     if(yes > no): # Note that it has to be a simple majority (tie does not count)
                         winner = "The majority voted :thumbsup:!"
@@ -352,6 +367,8 @@ class Elections(commands.Cog):
                         for reaction in election_message.reactions: #TODO: There has to be a more efficient way to get a specific reaction
                             if reaction.emoji == emoji:
                                 total_votes = reaction.count
+                                if self.bot.user in await reaction.users().flatten():
+                                    total_votes = total_votes - 1
                                 break;
                         all_options += number + " " + options[i] + ": `" + str(total_votes) + "`\n"
                         votes_for_each_option[i] = total_votes

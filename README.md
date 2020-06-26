@@ -46,6 +46,12 @@ It is recommended to give Turt bot the following server permissions in each serv
         - Turt can enforce link-only rules in link-only channels (the bot deletes non-link messages)
         - Turt can delete reactions from active election messages that are unrelated to the election
     - Note that bot hosters may have modified the code, allowing the bot hoster to raid your server if this is enabled (Be cautious and skeptical).
+- `add_reactions` - Allows Turt to add initial election reactions.
+    - Not having this is not detrimental; it just allows him to add all the possible options to elections so that it is easier to vote.
+        - This may increase turnout and decrease inadvertent peer pressure.
+- `read_message_history` - Allows Turt to read the message history of channels.
+    - Required for Turt to add initial election reactions
+    - Required for Turt to remove unwanted reactions from elections
 
 ## Features
 
