@@ -336,13 +336,15 @@ class Elections(commands.Cog):
                             no = reaction.count
                             if self.bot.user in await reaction.users().flatten():
                                 no = no-1
-        
+                    
                     if(yes > no): # Note that it has to be a simple majority (tie does not count)
                         winner = "The majority voted :thumbsup:!"
                     elif(yes < no):
                         winner = "The majority voted :thumbsdown:!"
+                    elif yes == 0 and no == 0:
+                        winner = "Nobody voted!"
                     else:
-                        winner = "The vote was a tie! (Simple majority not acquired)"
+                        winner = "The vote was a tie!"
 
                     vote_embed.add_field(name="Yes", value=yes, inline=True)
                     vote_embed.add_field(name="No", value=no, inline=True)
