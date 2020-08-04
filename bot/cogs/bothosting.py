@@ -19,8 +19,11 @@ class BotHosting(commands.Cog):
     @commands.command()
     @bot_hoster_only()
     async def shutdown(self, ctx):
-        '''Shutdown the bot in case of an emergency and bot hoster does not have direct access to the bot.
-        In order to shutdown the bot, you must be given permission by the bot hoster.'''        
+        '''
+        Permissions Requirement: Bot Hoster Whitelisted
+        Description:
+            Kill the bot process.
+        '''
         await self.bot.wait_until_ready()
         
         if not ctx.author.id in shutdown_admins: return
@@ -36,8 +39,14 @@ class BotHosting(commands.Cog):
     @commands.command()
     @bot_hoster_only()
     async def restart(self, ctx):
-        '''Restart the process. Must be whitelisted to restart the bot.
-        In order to restart the bot, you must be given permission by the bot hoster.'''
+        '''
+        Permissions Requirement: Bot Hoster Whitelisted
+        Description:
+            Create a new bot process and kill this one[1].
+            Useful for applying updates.
+        Notes:
+            [1] The system the bot is hosted on must have the *default* python version be >= python 3.6
+        '''
         await self.bot.wait_until_ready()
         
         if not ctx.author.id in shutdown_admins: return

@@ -24,8 +24,15 @@ class Elections(commands.Cog):
     @server_only()
     @whitelist_only()
     async def allcancallvote(self, ctx, can_all_call_vote:str):
-        '''Whitelist only.
-        Configure whether or not all users will be able to call elections (NOT recommended for public servers). Does not effect whitelisted users.'''
+        '''
+        Permissions Requirement: Server Whitelisted
+        Parameters:
+            can_all_call_vote - The new status of whether or not all non-whitelisted users on this server can create elections with `callvote`. Must be `true` or `false`.
+        Description:
+            Configure whether or not all users on this server will be able to call elections [1].
+        Notes:
+            [1] It is recommended for this to be set to false in public servers to prevent trolling.
+        '''
 
         #Determine if valid input given
         can_all_call_vote = can_all_call_vote.lower() #Make is case insensitive
@@ -60,8 +67,14 @@ class Elections(commands.Cog):
     @server_only()
     @server_owner_only()
     async def deleteelection(self, ctx, electionid:int):
-        '''Server owner only.
-        Delete an election from the server. Useful in case of trolling.'''
+        '''
+        Permissions Requirement: Server Owner
+        Parameters:
+            electionid - The id of the election to be deleted.
+                Election id can be seen in election embeds.
+        Description:
+            Delete an election from the server. Useful in case of trolling.
+        '''
 
         #Determine if the election is even in this server (or if it even exists)
         self.bot.sql.cursor.execute("SELECT ServerID, MessageID FROM elections WHERE ElectionID=?", (electionid,))
@@ -94,11 +107,26 @@ class Elections(commands.Cog):
     @commands.Command
     @server_only()
     async def callvote(self, ctx, name:str, desc:str, num_days:int, *argv):
-        '''All users can call elections if the server owner has configured it that way.
-        Creates an election with the given name and description that lasts for the supplied number of days (minimum is 1, decimals allowed, rounds to the nearest hour).
-        Elections can only be called every 24 hours by general users. whitelisted users and the server owner can create elections without a timeout.
-        Multi-option (up to 10 options) elections can be created by supplying up to 10 extra arguments each in quotations. 
-        If no extra options are given, then it will be a yes/no election.
+        '''
+        Permissions Requirement:
+            Server configurations allow all users to create elections: Server Member
+            Server configurations allow only whitelisted users to create elections: Server Whitelisted.
+        Parameters:
+            name - The name of this election.
+            desc - An extended description of this election about what it does and what it implies.
+            num_days - The number of days this election will be active.
+                Minimum of 1 day, decimals allowed.
+            argv - All the options for this election up to 10. Each should be in quotations.
+                Should not be supplied if this election is to have yes/no options.
+        Description:
+            Creates an election [3] with the given name and description that lasts for the supplied number of days.
+            Users vote in elections by reacting with their choice's emoji. All unrelated emojis are deleted [2].
+            Once an election is created, Turt bot will react with all the options (not used in the final vote count).
+            Elections can only be called every 24 hours by general users. Whitelisted users and the server owner can create elections without a timeout.
+        Notes:
+            [1] This is recommended to be restricted from general users in a public server due to spam and trolling.
+            [2] Turt must have the manage messages permission to delete emojis.
+            [3] The election channel must be set on the server.
         '''
 
         # Determine if this server allows all users to call votes
