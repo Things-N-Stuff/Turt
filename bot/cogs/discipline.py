@@ -86,6 +86,7 @@ class Discipline(commands.Cog):
             await ctx.channel.send("Warn reason cannot be whitespace.")
             return
 
+        print("Checking severity points")
         # Determine the number of severity points they now have
         cursor.execute("SELECT severitypoints FROM warnings WHERE userid=? AND serverid=?", (user_id, ctx.guild.id))
         severity_points = cursor.fetchone()
@@ -102,7 +103,6 @@ class Discipline(commands.Cog):
         conn.commit()
 
         # Determine their punishment (if they have reached a punishment)
-
         punished = False
         current_time_in_hours = int(math.ceil(time.time()/3600)) # Rounded up
         end_hour = current_time_in_hours
@@ -155,7 +155,10 @@ class Discipline(commands.Cog):
                 if user.dm_channel is None:
                     await user.create_dm()
                     
-                await user.dm_channel.send(embed=ban_embed)
+                try:
+                    await user.dm_channel.send(embed=ban_embed)
+                except:
+                    pass #Unable to dm this user it seems.
                     
                 ban_embed.title = f"{user.display_name} has been banned from the server for {bans_strings[ban_level]}."
                 ban_embed.set_thumbnail(url=member.avatar_url)
@@ -198,7 +201,10 @@ class Discipline(commands.Cog):
             if user.dm_channel is None:
                 await user.create_dm()
 
-            await user.dm_channel.send(embed=ban_embed)
+            try:
+                await user.dm_channel.send(embed=ban_embed)
+            except:
+                pass #cannot dm this user
 
             ban_embed.title = f"{user.display_name} has been warned."
             ban_embed.set_thumbnail(url=user.avatar_url)
