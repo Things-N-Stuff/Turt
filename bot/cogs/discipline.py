@@ -27,19 +27,31 @@ class Discipline(commands.Cog):
     @server_only()
     @whitelist_only()
     async def warn(self, ctx, user:discord.User, severity:int, reason:str):
-        '''Whitelist only.
-        Warn a user for something they did and add <severity> severity points to their account for this server.
-        Whitelisted users cannot warn other whitelisted users, however the server owner can.
-        Punishments: (Rounds up to the top of the next hour)
-            10 severity points - banned for 1 hour
-            20 severity points - banned for 1 day
-            30 severity points - banned for 1 week
-            40 severity points - banned for 1 month (30 days)
-            Every 10 severity points afterwards will result in a 1 month ban (30 days)
-        Abusing this command is recommended to result in punishment by the server owner
-        Note that Turt bot cannot ban users with roles higher in the role hierarchy. If a user should be banned,
-        consult someone who is higher in the hierarchy.
-        It is recommended to turn on the `ban members` permission for Turt, or the discipline features will be less than effective.
+        '''
+        Permissions Requirement: 
+            Warning Whitelisted Users: Server Owner
+            Warning Non-Whitelisted Users: Server Whitelisted
+        Parameters:
+            user - An @ mention or the userid of the user to be warned.
+            severity - How severe the offense was. This number is added to the user's account for this server.
+            reason - The reason for warning the user. It is recommended to issue warnings to whitelisted users who warn without adequate reason, or even for whitelist status to be revoked in extreme cases.
+        Description:
+            Warn a user for something they did and add <severity> severity points to their account for this server.
+            Once a punishable number of severity points has been reached, then a punishment is automatically issued [2][3].
+                If multiple punishable severity levels are surpassed, then the longest ban is issued.
+            Punishments: [1]
+                10 severity points - banned for 1 hour
+                20 severity points - banned for 1 day
+                30 severity points - banned for 1 week
+                Every 10 severity points afterwards will result in a 1 month ban (30 days)
+            When banning users, Turt bot will send a DM including a server invite [4].
+            After the ban has expired, Turt bot will unban the user [3].
+
+        Notes:
+            [1] Ban punishments round up to the next hour.
+            [2] Turt bot cannot ban users with roles higher in the role hierarchy. If a user should be banned, consult someone who is higher in the hierarchy.
+            [3] It is recommended to turn on the `ban members` permission for Turt, or Turt will be unable to ban or automatically unban users when their ban has expired.
+            [4] It is recommended to turn on the `manage server` permission for Turt, or Turt will be unable to send server invites to banned users.
         '''
 
         bans_in_hours = [1, 24, 168, 720] #Note that month bans are 30 days (they dont vary with month)

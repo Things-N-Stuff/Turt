@@ -15,8 +15,15 @@ class Channels(commands.Cog):
     @server_only()
     @whitelist_only()
     async def prune(self, ctx, n:int=None):
-        '''Whitelist only.
-        Deletes the previous n number of messages (Up to 99).'''
+        '''
+        Permissions Requirement: Server Whitelisted
+        Parameter Notes:
+            n - The number of messages to delete. Maximum of 99.
+        Description:
+            Deletes the previous n number of messages (up to 99) [1].
+        Notes:
+            [1] Turt bot must have the `manage messages` permission for it to delete messages.
+        '''
 
         if n > 99:
             await ctx.channel.send("You can only prune up to 99 messages.")
@@ -32,10 +39,19 @@ class Channels(commands.Cog):
     @server_only()
     @whitelist_only()
     async def setlinkonly(self, ctx, channel_id:int, link_only:str="true"):
-        '''Whitelist only.
-        Update the link-only status of a channel.
-        Turt bot will delete all messages that are not links in link-only channels.
-        [link_only] needs to be either 1 (link_only) or 0 (not link_only). Sets to link-only by default if [link_only] not given.'''
+        '''
+        Permissions Requirement: Server Whitelisted
+        Parameter Notes:
+            channel_id - The id of the channel to be modified.
+            link_only - The new `link_only` status of a channel. Should be `true` or `false`.
+                If not provided, then defaults to `true`.
+        Description:
+            Update the link-only status of a channel.
+            Turt bot will delete all messages that are not links in link-only channels [1].
+        Notes:
+            [1] Turt bot must have the `manage messages` permission for it to delete messages.
+            [2] Messages in link-only channels must start with links but can have following messages.
+        '''
 
         link_only = link_only.lower()
 

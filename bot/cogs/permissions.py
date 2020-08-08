@@ -14,9 +14,14 @@ class Permissions(commands.Cog):
     @server_only()
     @server_owner_only()
     async def whitelist(self, ctx, userid:int, whitelisted:str):
-        '''Whitelist a specific user for this server (so they can use commands like `prune`).
-        If a command requires whitelisting, then it is specified in the command's help message.
-        Only server owners can whitelist users for their server.'''
+        '''
+        Permissions Requirement: Server Owner
+        Parameters:
+            userid - The discord userid of the user to have their whitelist status updated.
+                Must be 'true' or 'false'.
+        Description:
+            Whitelist a specific user for this server, which allows them to use whitelist-only commands.
+        '''
         whitelisted = whitelisted.lower() #Make is case insensitive
         
         self.bot.sql.cursor.execute("SELECT userid FROM whitelist WHERE serverid=?", (ctx.guild.id,))

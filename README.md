@@ -26,8 +26,22 @@ In order for the restart command to work, the *default* python3 version on your 
 
 ## Plans for Turt
 
-Our current plans for Turt can be seen [here](https://docs.google.com/document/d/1-u4tWmgt2BiIjdiXu1FnjCUi64xBHLHDEhf8N6rCe-g).  
+Our current plans for Turt can be seen on [GitHub](https://github.com/Things-N-Stuff/Turt/projects/1).  
 If you wish to contribute to this list, [open an issue](https://github.com/Things-N-Stuff/Turt/issues).
+
+## User Permission Hierarchy
+
+Command Permission Requirements are stated in their respective help messages.
+
+**Bot Owner Whitelist** - Allows bot owner to use `shutdown` and `startup` commands
+    Note: Does note grant permissions within servers.
+    Specified in the config.py file
+
+**Server Owner** - Gives complete control over Turt bot in your server.
+
+**Server Whitelist** - Gives special permissions within this server.
+
+**Server Member** - No special permissions for Turt bot in this server.
 
 ## Server Permissions 
 
