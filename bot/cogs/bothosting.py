@@ -14,6 +14,7 @@ from bot.decorators import bot_hoster_only
 class BotHosting(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.restart_bot.start()
 
     # Allow only specially whitelisted people to shut the bot down (in bot_shutdown)
     @commands.command()
@@ -63,6 +64,21 @@ class BotHosting(commands.Cog):
             os.system("python3 turt.py")
             sys.exit(2)
 
+
+    @tasks.loop(hours=168)
+    async def restart_bot(self):
+        if not is_ready(): return
+        
+        try:
+            self.bot.sql.conn.commit()
+            self.bot.sql.disconnect()
+            # spawn process
+            os.system("python3 turt.py")
+            await self.bot.close()
+        except:
+            # spawn process
+            os.system("python3 turt.py")
+            sys.exit(2)
 
 def setup(bot: commands.Bot) -> None:
     '''Load the bothosting cog'''
